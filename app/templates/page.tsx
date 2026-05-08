@@ -1,7 +1,9 @@
 import { Suspense } from "react";
 import { TemplatesWithSearchParams } from "./TemplatesWithSearchParams";
+import { listSidebarCategories, listTemplates } from "@/lib/template-store";
 
-export default function TemplatesPage() {
+export default async function TemplatesPage() {
+  const [templates, categories] = await Promise.all([listTemplates(), listSidebarCategories()]);
   return (
     <Suspense
       fallback={
@@ -10,7 +12,7 @@ export default function TemplatesPage() {
         </div>
       }
     >
-      <TemplatesWithSearchParams />
+      <TemplatesWithSearchParams templates={templates} categories={categories} />
     </Suspense>
   );
 }

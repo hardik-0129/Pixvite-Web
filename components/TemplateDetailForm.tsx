@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Template } from "@/lib/templates";
+import { isFormFieldEnabled } from "@/lib/templates";
 import { EditorProgressStepper } from "./EditorProgressStepper";
 import { InstagramSupportLink } from "./InstagramSupportLink";
 import { TemplateCheckoutModal } from "./TemplateCheckoutModal";
@@ -16,8 +17,8 @@ function fieldInputId(name: string) {
   return `field-${name.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
 }
 
-function isImageField(label: string) {
-  return /photo|image/i.test(label);
+function isImageField(field: Template["formFields"][number]) {
+  return field.type === "image" || /photo|image/i.test(field.label);
 }
 
 function textareaMinHeight(label: string, value: string): number {
@@ -76,12 +77,79 @@ function AlertTriangle({ className }: { className?: string }) {
 }
 
 export function TemplateDetailForm({ template }: Props) {
-  const initial: Record<string, string> = {};
-  template.formFields.forEach((f) => {
-    initial[f.name] = f.defaultValue;
-  });
-  const [values, setValues] = useState(initial);
+  const visibleFormFields = useMemo(
+    () => template.formFields.filter((f) => isFormFieldEnabled(f)),
+    [template.formFields]
+  );
+
+  const initial = useMemo(() => {
+    const next: Record<string, string> = {};
+    template.formFields.forEach((f) => {
+      next[f.name] = f.defaultValue;
+    });
+    return next;
+  }, [template.formFields]);
+  const draftStorageKey = useMemo(() => `template-draft:${template.id}`, [template.id]);
+  const [values, setValues] = useState<Record<string, string>>(initial);
+  const [draftMessage, setDraftMessage] = useState<string>("");
   const [checkoutOpen, setCheckoutOpen] = useState(false);
+
+  useEffect(() => {
+    setValues(initial);
+  }, [initial]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = window.localStorage.getItem(draftStorageKey);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as Record<string, string> | null;
+      if (!parsed || typeof parsed !== "object") return;
+      setValues((prev) => ({ ...prev, ...parsed }));
+      setDraftMessage("Loaded saved draft");
+    } catch {
+      // Ignore invalid draft payloads.
+    }
+  }, [draftStorageKey]);
+
+  useEffect(() => {
+    if (!draftMessage) return;
+    const id = window.setTimeout(() => setDraftMessage(""), 1800);
+    return () => window.clearTimeout(id);
+  }, [draftMessage]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const id = window.setTimeout(() => {
+      try {
+        window.localStorage.setItem(draftStorageKey, JSON.stringify(values));
+      } catch {
+        // Ignore auto-save failures; manual Save Draft still shows status.
+      }
+    }, 700);
+    return () => window.clearTimeout(id);
+  }, [draftStorageKey, values]);
+
+  const onSaveDraft = () => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(draftStorageKey, JSON.stringify(values));
+      setDraftMessage("Draft saved");
+    } catch {
+      setDraftMessage("Could not save draft");
+    }
+  };
+
+  const onResetDefaults = () => {
+    setValues(initial);
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(draftStorageKey, JSON.stringify(initial));
+      setDraftMessage("Reset to default");
+    } catch {
+      setDraftMessage("Reset done (draft not saved)");
+    }
+  };
 
   const steps = [
     { label: "Choose Template", shortLabel: "Choose", state: "done" as const },
@@ -132,7 +200,10 @@ export function TemplateDetailForm({ template }: Props) {
                 posterSrc={template.thumbnail}
                 posterAlt={title}
                 previewVideoUrl={template.previewVideoUrl}
+                previewAudioUrl={template.previewAudioUrl}
+                previewFontUrls={template.previewFontUrls}
                 fieldValues={values}
+                formFields={template.formFields}
                 videoTextOverlays={template.previewVideoTextOverlays}
                 lottiePreviewUrl={template.lottiePreviewUrl}
               />
@@ -154,23 +225,28 @@ export function TemplateDetailForm({ template }: Props) {
               <div className="max-h-[min(68vh,560px)] overflow-y-auto pr-1 [-ms-overflow-style:none] [scrollbar-width:thin] sm:max-h-[min(72vh,620px)] lg:max-h-[min(78vh,680px)] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-300/80">
                 <div className="rounded-2xl border border-gray-100 bg-gradient-to-b from-gray-50/90 to-gray-50/40 p-4 shadow-inner sm:p-5 md:p-6">
                   <div className="space-y-4 sm:space-y-5">
-                    {template.formFields.map((field) => (
+                    {visibleFormFields.map((field) => (
                       <div key={field.name}>
-                        {isImageField(field.label) ? (
+                        {isImageField(field) ? (
                           <p className={fieldLabelClass}>{field.label}</p>
                         ) : (
                           <label htmlFor={fieldInputId(field.name)} className={fieldLabelClass}>
                             {field.label}
                           </label>
                         )}
-                        {isImageField(field.label) ? (
+                        {isImageField(field) ? (
                           <div className="mt-1.5 rounded-xl border border-dashed border-gray-300/80 bg-white p-4 text-center shadow-sm">
                             <input
                               id={`${fieldInputId(field.name)}-file`}
                               accept="image/*"
                               type="file"
                               className="hidden"
-                              onChange={() => {}}
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (!file) return;
+                                const url = URL.createObjectURL(file);
+                                setValues((v) => ({ ...v, [field.name]: url }));
+                              }}
                             />
                             <label
                               htmlFor={`${fieldInputId(field.name)}-file`}
@@ -178,6 +254,15 @@ export function TemplateDetailForm({ template }: Props) {
                             >
                               Choose Image
                             </label>
+                            {values[field.name] ? (
+                              <div className="mt-3">
+                                <img
+                                  src={values[field.name]}
+                                  alt={field.label}
+                                  className="mx-auto h-20 w-auto max-w-full rounded-lg border border-gray-200 object-contain"
+                                />
+                              </div>
+                            ) : null}
                           </div>
                         ) : (
                           <textarea
@@ -210,13 +295,21 @@ export function TemplateDetailForm({ template }: Props) {
                   <div className="flex w-full flex-col gap-3 sm:ml-auto sm:max-w-xl sm:flex-row sm:justify-end">
                     <button
                       type="button"
-                      className="font-body order-2 w-full rounded-xl border-2 border-gray-200 bg-white px-5 py-3 text-sm font-semibold text-[var(--foreground)] shadow-sm transition hover:border-[var(--brand-end)]/50 hover:bg-gray-50/80 sm:order-1 sm:w-auto sm:min-w-[140px]"
+                      className="font-body order-3 w-full rounded-xl border-2 border-gray-200 bg-white px-5 py-3 text-sm font-semibold text-[var(--foreground)] shadow-sm transition hover:border-gray-300 hover:bg-gray-50/80 sm:order-1 sm:w-auto sm:min-w-[160px]"
+                      onClick={onResetDefaults}
+                    >
+                      Reset to Default
+                    </button>
+                    <button
+                      type="button"
+                      className="font-body order-2 w-full rounded-xl border-2 border-gray-200 bg-white px-5 py-3 text-sm font-semibold text-[var(--foreground)] shadow-sm transition hover:border-[var(--brand-end)]/50 hover:bg-gray-50/80 sm:order-2 sm:w-auto sm:min-w-[140px]"
+                      onClick={onSaveDraft}
                     >
                       Save Draft
                     </button>
                     <button
                       type="button"
-                      className="font-body order-1 w-full rounded-xl px-5 py-3 text-sm font-semibold text-white shadow-md transition hover:opacity-95 hover:shadow-lg sm:order-2 sm:w-auto sm:min-w-[180px]"
+                      className="font-body order-1 w-full rounded-xl px-5 py-3 text-sm font-semibold text-white shadow-md transition hover:opacity-95 hover:shadow-lg sm:order-3 sm:w-auto sm:min-w-[180px]"
                       style={{
                         background: "linear-gradient(135deg, var(--brand-start), var(--brand-end))",
                       }}
@@ -226,6 +319,9 @@ export function TemplateDetailForm({ template }: Props) {
                     </button>
                   </div>
                 </div>
+                {draftMessage ? (
+                  <p className="mt-3 text-right text-xs font-medium text-[var(--text-secondary)]">{draftMessage}</p>
+                ) : null}
               </div>
             </div>
           </div>

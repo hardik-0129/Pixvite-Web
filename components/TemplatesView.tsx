@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useMemo, useState } from "react";
-import { filterTemplates, templates as allTemplates } from "@/lib/templates";
+import { filterTemplates, type SidebarCategory, type Template } from "@/lib/templates";
 import { TemplateCard } from "./TemplateCard";
 import { TemplateSidebar } from "./TemplateSidebar";
 
@@ -23,11 +23,19 @@ function templateIdNum(id: string): number {
   return Number.isFinite(n) ? n : 0;
 }
 
-export function TemplatesView({ preset }: { preset?: Preset }) {
+export function TemplatesView({
+  preset,
+  templates,
+  categories,
+}: {
+  preset?: Preset;
+  templates: Template[];
+  categories: SidebarCategory[];
+}) {
   const [category, setCategory] = useState<string | null>(preset?.category ?? null);
   const [subcategory, setSubcategory] = useState<string | null>(preset?.subcategory ?? null);
   const [search, setSearch] = useState(preset?.initialSearch ?? "");
-  const [sortBy, setSortBy] = useState<SortKey>(preset?.sort ?? "recent");
+  const sortBy: SortKey = preset?.sort ?? "recent";
   const [priceFilter, setPriceFilter] = useState<PriceFilter>("all");
   const [durationFilter, setDurationFilter] = useState<DurationFilter>("all");
 
@@ -45,14 +53,14 @@ export function TemplatesView({ preset }: { preset?: Preset }) {
 
   const filtered = useMemo(
     () =>
-      filterTemplates(allTemplates, {
+      filterTemplates(templates, {
         category: category ?? undefined,
         subcategory: subcategory ?? undefined,
         search,
         ...priceRange,
         ...durationRange,
       }),
-    [category, subcategory, search, priceRange, durationRange]
+    [templates, category, subcategory, search, priceRange, durationRange]
   );
 
   const sorted = useMemo(() => {
@@ -100,6 +108,7 @@ export function TemplatesView({ preset }: { preset?: Preset }) {
 
         <div className="flex min-w-0 flex-col gap-6 lg:flex-row lg:gap-8">
           <TemplateSidebar
+            categories={categories}
             category={category}
             subcategory={subcategory}
             search={search}
@@ -118,7 +127,7 @@ export function TemplatesView({ preset }: { preset?: Preset }) {
               <div className="mb-4 flex min-w-0 flex-col gap-3 sm:mb-6 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
                 <div className="min-w-0 w-full sm:w-auto">
                   <p className="text-xs text-[var(--muted-foreground)] sm:text-sm">
-                    Showing {sorted.length} of {allTemplates.length}
+                    Showing {sorted.length} of {templates.length}
                   </p>
                 </div>
                 <div className="flex min-w-0 w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
@@ -137,7 +146,7 @@ export function TemplatesView({ preset }: { preset?: Preset }) {
                   </select> */}
                   <div className="inline-flex max-w-full flex-wrap items-baseline gap-x-1 rounded-lg border-2 border-gray-400 bg-[var(--muted)]/50 px-3 py-1.5 sm:px-4 sm:py-2 dark:border-gray-500">
                     <span className="text-base font-bold sm:text-lg" style={{ color: "var(--accent)" }}>
-                      {allTemplates.length}
+                      {templates.length}
                     </span>
                     <span className="text-xs font-medium text-[var(--muted-foreground)] sm:text-sm">Templates</span>
                   </div>

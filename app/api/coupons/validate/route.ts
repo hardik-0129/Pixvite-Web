@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getTemplateById } from "@/lib/templates";
+import { getTemplateById } from "@/lib/template-store";
 import { resolveCheckoutPricing } from "@/lib/coupon-checkout";
 
 export const runtime = "nodejs";
@@ -24,7 +24,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "templateId is required" }, { status: 400 });
   }
 
-  const template = getTemplateById(templateId);
+  const template = await getTemplateById(templateId);
   if (!template) {
     return NextResponse.json({ error: "Template not found" }, { status: 404 });
   }

@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto";
 import { NextResponse } from "next/server";
 import Razorpay from "razorpay";
 import { resolveCheckoutPricing } from "@/lib/coupon-checkout";
-import { getTemplateById } from "@/lib/templates";
+import { getTemplateById } from "@/lib/template-store";
 import { insertPendingTemplateOrder } from "@/lib/template-orders";
 
 export const runtime = "nodejs";
@@ -60,7 +60,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const template = getTemplateById(templateId);
+  const template = await getTemplateById(templateId);
   if (!template) {
     return NextResponse.json({ error: "Template not found" }, { status: 404 });
   }

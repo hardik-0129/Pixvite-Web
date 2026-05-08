@@ -1,12 +1,13 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { TEMPLATE_SIDEBAR_CATEGORIES } from "@/lib/templates";
+import type { SidebarCategory } from "@/lib/templates";
 
 type PriceFilter = "all" | "low" | "mid";
 type DurationFilter = "all" | "short" | "long";
 
 type Props = {
+  categories: SidebarCategory[];
   category: string | null;
   subcategory: string | null;
   search: string;
@@ -93,6 +94,7 @@ function XIcon({ className }: { className?: string }) {
 }
 
 export function TemplateSidebar({
+  categories,
   category,
   subcategory,
   search,
@@ -296,7 +298,7 @@ export function TemplateSidebar({
             </button>
           </div>
           <div className="hide-scrollbar max-h-[200px] space-y-2 overflow-y-auto">
-            {TEMPLATE_SIDEBAR_CATEGORIES.map((cat) => {
+            {categories.map((cat) => {
               const isActiveParent = category === cat.name;
               return (
                 <div

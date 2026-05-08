@@ -6,13 +6,15 @@ import { PopularTagsSection } from "@/components/PopularTagsSection";
 import { WhyPixviteSection } from "@/components/WhyPixviteSection";
 import { TemplateCard } from "@/components/TemplateCard";
 import { sectionHeading } from "@/lib/sectionHeading";
-import { templates } from "@/lib/templates";
+import { listTemplates } from "@/lib/template-store";
 
 const showcaseIds = ["IM188", "IM187", "IM186", "IM185"];
-const showcased = showcaseIds.map((id) => templates.find((t) => t.id === id)).filter(Boolean) as typeof templates;
-const popular = [...showcased, ...templates.filter((t) => !showcaseIds.includes(t.id))].slice(0, 8);
 
-export default function HomePage() {
+export default async function HomePage() {
+  const templates = await listTemplates();
+  const showcased = showcaseIds.map((id) => templates.find((t) => t.id === id)).filter(Boolean) as typeof templates;
+  const popular = [...showcased, ...templates.filter((t) => !showcaseIds.includes(t.id))].slice(0, 8);
+
   return (
     <>
       <section

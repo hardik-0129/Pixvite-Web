@@ -1,5 +1,8 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
+import { useCallback, useRef, useState } from "react";
 import type { Template } from "@/lib/templates";
 
 type Props = {
@@ -17,18 +20,60 @@ function MuteIcon() {
   );
 }
 
+function HoverPreviewSpinner() {
+  return (
+    <div
+      className="pointer-events-none absolute inset-0 z-[15] flex items-center justify-center bg-black/25"
+      role="status"
+      aria-label="Loading preview"
+    >
+      <div className="h-10 w-10 animate-spin rounded-full border-2 border-white/25 border-t-white" />
+    </div>
+  );
+}
+
 export function TemplateCard({ template }: Props) {
-  const { id, title, category, subcategory, functions, duration, price, originalPrice, thumbnail } = template;
+  const { id, title, category, subcategory, functions, duration, price, originalPrice, thumbnail, previewVideoUrl } = template;
   const showFunctionsLine = functions >= 3;
   const showSubLine =
     subcategory &&
     subcategory !== title &&
     !title.toLowerCase().includes(subcategory.toLowerCase().slice(0, 8));
 
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const [hoverPreview, setHoverPreview] = useState(false);
+  const [videoReady, setVideoReady] = useState(false);
+
+  const handlePointerEnter = useCallback(() => {
+    if (!previewVideoUrl) return;
+    setHoverPreview(true);
+    setVideoReady(false);
+  }, [previewVideoUrl]);
+
+  const handlePointerLeave = useCallback(() => {
+    setHoverPreview(false);
+    setVideoReady(false);
+    const v = videoRef.current;
+    if (v) {
+      v.pause();
+      v.currentTime = 0;
+    }
+  }, []);
+
+  const handleVideoCanPlay = useCallback(() => {
+    setVideoReady(true);
+    const v = videoRef.current;
+    if (v) void v.play().catch(() => {});
+  }, []);
+
+  const showHoverSpinner = Boolean(previewVideoUrl && hoverPreview && !videoReady);
+
   return (
     <Link
       href={`/templates/${id}`}
       className="group relative aspect-[9/16] w-full cursor-pointer overflow-hidden rounded-xl border border-[var(--border)]/50 shadow-md transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg"
+      onPointerEnter={handlePointerEnter}
+      onPointerLeave={handlePointerLeave}
     >
       <Image
         src={thumbnail}
@@ -37,6 +82,24 @@ export function TemplateCard({ template }: Props) {
         className="object-cover transition-opacity duration-300 group-hover:scale-[1.02]"
         sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
       />
+
+      {previewVideoUrl && hoverPreview ? (
+        <video
+          ref={videoRef}
+          src={previewVideoUrl}
+          className={`absolute inset-0 z-0 h-full w-full object-cover transition-opacity duration-300 ${
+            videoReady ? "opacity-100" : "opacity-0"
+          }`}
+          muted
+          playsInline
+          loop
+          preload="auto"
+          aria-hidden
+          onCanPlay={handleVideoCanPlay}
+        />
+      ) : null}
+
+      {showHoverSpinner ? <HoverPreviewSpinner /> : null}
 
       <div
         className="absolute left-2 top-2 z-40 flex h-10 w-10 items-center justify-center rounded-full border border-white/20 shadow-lg transition-all duration-200 group-hover:scale-110 active:scale-95 sm:left-2 sm:top-2"
