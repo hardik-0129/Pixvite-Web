@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="300" viewBox="0 0 600 300" fill="none">
+  <rect width="600" height="300" rx="12" fill="url(#g)"/>
+  <text x="300" y="140" text-anchor="middle" fill="#1a1a1a" font-family="system-ui,sans-serif" font-size="22" font-weight="700">3 Steps to Create Invitation</text>
+  <text x="300" y="175" text-anchor="middle" fill="#555" font-family="system-ui,sans-serif" font-size="14">Pick a template · Customize · Download HD</text>
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="600" y2="300" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#fff5f0"/>
+      <stop offset="1" stop-color="#ffe8ec"/>
+    </linearGradient>
+  </defs>
+</svg>

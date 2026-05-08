@@ -1,0 +1,115 @@
+================================================================================
+ADMIN PANEL — FEATURE SUGGESTIONS (Pixvite / InviteMaker-style site)
+================================================================================
+Use this as a roadmap. Build in phases: MVP first, then growth and ops.
+
+--------------------------------------------------------------------------------
+1) DASHBOARD (HOME)
+--------------------------------------------------------------------------------
+- KPI cards: total templates, orders today/week, revenue (if payments), new users
+- Quick links: add template, view pending orders, open support queue
+- Simple chart: sales or downloads over last 30 days (optional)
+- Alerts: low-stock digital “bundles”, failed webhooks, expiring offers
+
+--------------------------------------------------------------------------------
+2) TEMPLATES (CORE FOR YOUR PRODUCT)
+--------------------------------------------------------------------------------
+- List / grid of all video templates with filters: category, subcategory, price, active/draft
+- Create / edit / duplicate / archive template
+- Fields you likely need: id, title, category, subcategory, price, originalPrice, duration,
+  thumbnail URL, preview video URL, Lottie URL, form field definitions, text overlay config
+- Bulk actions: change category, adjust price, enable/disable on storefront
+- Preview link (opens public template detail page)
+- SEO: slug, meta title/description per template (if you add SEO later)
+
+--------------------------------------------------------------------------------
+3) CATEGORIES & NAVIGATION
+--------------------------------------------------------------------------------
+- CRUD for categories and subcategories (matches your sidebar: Wedding, Engagement, etc.)
+- Drag-and-drop order for sidebar and homepage sections
+- Optional: featured flags for homepage blocks
+
+--------------------------------------------------------------------------------
+4) ORDERS & PAYMENTS (IF YOU SELL DOWNLOADS / CUSTOMIZATION)
+--------------------------------------------------------------------------------
+- Order list: status (pending, paid, processing, completed, refunded), date, customer, amount
+- Order detail: line items (template id), coupon used, payment id from gateway
+- Manual status update + notes (internal only)
+- Export CSV for accounting
+- Refund initiation (if integrated with Razorpay/Stripe/etc.)
+
+--------------------------------------------------------------------------------
+5) USERS & AUTH (IF YOU HAVE ACCOUNTS)
+--------------------------------------------------------------------------------
+- User list: email, signup date, last login, role
+- Roles: admin, support, customer (RBAC for who can access admin)
+- Block / unblock user, reset password flow (or magic link)
+- Optional: “impersonate” for support (careful; audit log)
+
+--------------------------------------------------------------------------------
+6) COUPONS & PROMOTIONS
+--------------------------------------------------------------------------------
+- Create coupons: code, percent or fixed discount, max uses, expiry, min order amount
+- Toggle active; usage count
+- Tie to campaigns (e.g. “50% off” banner on site)
+
+--------------------------------------------------------------------------------
+7) CONTENT / CMS (LIGHTWEIGHT)
+--------------------------------------------------------------------------------
+- Editable static pages or sections: About, Contact blurb, FAQ items, footer links
+- Homepage blocks: hero copy, announcement bar text, “Why Pixvite” bullets
+- Media library: upload images; reuse URLs in templates and pages
+
+--------------------------------------------------------------------------------
+8) ANALYTICS & REPORTING
+--------------------------------------------------------------------------------
+- Template views / clicks (if you track events)
+- Top search terms from your navbar search → tune tags and inventory
+- Conversion funnel: view template → start editor → checkout (if measurable)
+
+--------------------------------------------------------------------------------
+9) SUPPORT & COMMUNICATION
+--------------------------------------------------------------------------------
+- List contact form submissions (if you persist them)
+- Link to Instagram/support workflow or ticket id
+- Email templates: order confirmation, OTP, password reset (if you send mail)
+
+--------------------------------------------------------------------------------
+10) SITE SETTINGS
+--------------------------------------------------------------------------------
+- Brand: logo URL, primary colors (or CSS variables), announcement bar on/off
+- Feature flags: maintenance mode, show/hide festival bundles, enable checkout
+- Payment keys: store in env in production; admin only shows “configured / not”
+
+--------------------------------------------------------------------------------
+11) AUDIT & SECURITY
+--------------------------------------------------------------------------------
+- Audit log: who changed price, published template, refunded order
+- Session management: force logout all admins (emergency)
+- 2FA for admin accounts (recommended)
+
+--------------------------------------------------------------------------------
+12) TECH STACK SUGGESTIONS (NEXT.JS YOU ALREADY HAVE)
+--------------------------------------------------------------------------------
+- Route group: app/admin/(dashboard)/... with layout + sidebar
+- Protect routes: middleware checking session + role; never trust client-only checks
+- API: Route Handlers or Server Actions + validation (Zod) for all mutations
+- Database: PostgreSQL (Neon/Supabase/Railway) + Prisma or Drizzle
+- Auth: NextAuth / Auth.js or Clerk for admin vs customer separation
+- File storage: S3/R2/Uploadthing for thumbnails and video assets
+- Admin UI: shadcn/ui + TanStack Table for lists; reuse your design tokens
+
+--------------------------------------------------------------------------------
+13) MVP ORDER (WHAT TO BUILD FIRST)
+--------------------------------------------------------------------------------
+1) Admin auth + role
+2) Template CRUD (even if JSON-backed at first)
+3) Category list order
+4) Orders list (when payments exist)
+5) Coupons
+6) Dashboard KPIs
+7) Everything else as needed
+
+================================================================================
+END OF SUGGESTIONS
+================================================================================

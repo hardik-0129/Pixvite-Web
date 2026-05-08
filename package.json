@@ -1,5 +1,5 @@
 {
-  "name": "invitemaker-nextjs",
+  "name": "pixvite-nextjs",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -9,13 +9,21 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "jsonwebtoken": "^9.0.3",
+    "lottie-react": "^2.4.1",
+    "mongodb": "^7.2.0",
     "next": "16.2.4",
+    "nodemailer": "^8.0.7",
+    "razorpay": "^2.9.6",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "swiper": "^12.1.4"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^20",
+    "@types/nodemailer": "^8.0.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
