@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Template } from "@/lib/templates";
 import { isFormFieldEnabled } from "@/lib/templates";
+import { buildEditedLottieForDownload } from "@/lib/lottie-apply-fields";
+import { renderEditedTemplateVideo } from "@/lib/render-template-video-client";
 import { EditorProgressStepper } from "./EditorProgressStepper";
 import { InstagramSupportLink } from "./InstagramSupportLink";
 import { TemplateCheckoutModal } from "./TemplateCheckoutModal";
@@ -76,6 +78,17 @@ function AlertTriangle({ className }: { className?: string }) {
   );
 }
 
+function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
 export function TemplateDetailForm({ template }: Props) {
   const visibleFormFields = useMemo(
     () => template.formFields.filter((f) => isFormFieldEnabled(f)),
@@ -90,26 +103,43 @@ export function TemplateDetailForm({ template }: Props) {
     return next;
   }, [template.formFields]);
   const draftStorageKey = useMemo(() => `template-draft:${template.id}`, [template.id]);
+  const paidStorageKey = useMemo(() => `template-paid-download:${template.id}`, [template.id]);
   const [values, setValues] = useState<Record<string, string>>(initial);
   const [draftMessage, setDraftMessage] = useState<string>("");
   const [checkoutOpen, setCheckoutOpen] = useState(false);
-
-  useEffect(() => {
-    setValues(initial);
-  }, [initial]);
+  const [paidUnlocked, setPaidUnlocked] = useState(false);
+  const [exportJsonBusy, setExportJsonBusy] = useState(false);
+  const [exportVideoBusy, setExportVideoBusy] = useState(false);
+  const [exportProgress, setExportProgress] = useState<number | null>(null);
+  const [exportMessage, setExportMessage] = useState("");
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    try {
-      const raw = window.localStorage.getItem(draftStorageKey);
-      if (!raw) return;
-      const parsed = JSON.parse(raw) as Record<string, string> | null;
-      if (!parsed || typeof parsed !== "object") return;
-      setValues((prev) => ({ ...prev, ...parsed }));
-      setDraftMessage("Loaded saved draft");
-    } catch {
-      // Ignore invalid draft payloads.
-    }
+    const raf = requestAnimationFrame(() => {
+      try {
+        if (sessionStorage.getItem(paidStorageKey) === "1") setPaidUnlocked(true);
+      } catch {
+        /* ignore */
+      }
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [paidStorageKey]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const raf = requestAnimationFrame(() => {
+      try {
+        const raw = window.localStorage.getItem(draftStorageKey);
+        if (!raw) return;
+        const parsed = JSON.parse(raw) as Record<string, string> | null;
+        if (!parsed || typeof parsed !== "object") return;
+        setValues((prev) => ({ ...prev, ...parsed }));
+        setDraftMessage("Loaded saved draft");
+      } catch {
+        // Ignore invalid draft payloads.
+      }
+    });
+    return () => cancelAnimationFrame(raf);
   }, [draftStorageKey]);
 
   useEffect(() => {
@@ -154,14 +184,88 @@ export function TemplateDetailForm({ template }: Props) {
   const steps = [
     { label: "Choose Template", shortLabel: "Choose", state: "done" as const },
     { label: "Enter Details", shortLabel: "Details", state: "done" as const },
-    { label: "Download Video", shortLabel: "Download", state: "upcoming" as const },
+    { label: "Download", shortLabel: "Download", state: paidUnlocked ? ("done" as const) : ("upcoming" as const) },
   ];
+
+  const plateVideoUrl = useMemo(
+    () => (template.backgroundVideoUrl || template.previewVideoUrl || "").trim(),
+    [template.backgroundVideoUrl, template.previewVideoUrl]
+  );
+
+  const handlePaymentVerified = useCallback(() => {
+    try {
+      sessionStorage.setItem(paidStorageKey, "1");
+    } catch {
+      /* ignore */
+    }
+    setPaidUnlocked(true);
+    setCheckoutOpen(false);
+  }, [paidStorageKey]);
+
+  const downloadEditedJson = useCallback(async () => {
+    setExportMessage("");
+    if (!template.lottiePreviewUrl?.trim()) {
+      setExportMessage("This template does not include a Lottie JSON URL to export.");
+      return;
+    }
+    setExportJsonBusy(true);
+    try {
+      const data = await buildEditedLottieForDownload(template.lottiePreviewUrl, template.formFields, values);
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json;charset=utf-8" });
+      downloadBlob(blob, `${template.id}-edited-lottie.json`);
+      setExportMessage("Lottie JSON download started.");
+    } catch (e) {
+      setExportMessage(e instanceof Error ? e.message : "Could not build JSON export.");
+    } finally {
+      setExportJsonBusy(false);
+    }
+  }, [template.id, template.lottiePreviewUrl, template.formFields, values]);
+
+  const downloadRenderedVideo = useCallback(async () => {
+    setExportMessage("");
+    setExportProgress(null);
+    if (!template.lottiePreviewUrl?.trim()) {
+      setExportMessage("A Lottie JSON file is required to render the video.");
+      return;
+    }
+    if (!plateVideoUrl) {
+      setExportMessage("This template is missing a plate video (set background or preview video on the template).");
+      return;
+    }
+    setExportVideoBusy(true);
+    try {
+      const edited = await buildEditedLottieForDownload(template.lottiePreviewUrl, template.formFields, values);
+      const { blob, extension } = await renderEditedTemplateVideo({
+        animationData: edited,
+        plateVideoUrl,
+        previewFontUrls: template.previewFontUrls ?? null,
+        audioUrl: template.previewAudioUrl?.trim() || null,
+        onProgress: (r) => setExportProgress(r),
+      });
+      downloadBlob(blob, `${template.id}-export.${extension}`);
+      setExportMessage(
+        extension === "mp4"
+          ? "MP4 download started."
+          : "WebM download started. You can convert to MP4 with VLC or FFmpeg if needed."
+      );
+    } catch (e) {
+      setExportMessage(e instanceof Error ? e.message : "Video export failed.");
+    } finally {
+      setExportVideoBusy(false);
+      setExportProgress(null);
+    }
+  }, [plateVideoUrl, template.formFields, template.lottiePreviewUrl, template.id, template.previewAudioUrl, template.previewFontUrls, values]);
 
   const title = `${template.id} | ${template.title}`;
 
   return (
     <div className="min-h-screen bg-[var(--background)] pb-28 pt-2 sm:pb-32 sm:pt-4">
-      <TemplateCheckoutModal open={checkoutOpen} onClose={() => setCheckoutOpen(false)} template={template} />
+      <TemplateCheckoutModal
+        open={checkoutOpen}
+        onClose={() => setCheckoutOpen(false)}
+        template={template}
+        onPaymentSuccess={handlePaymentVerified}
+      />
       <div className="mx-auto max-w-[1400px] px-3 sm:px-5 md:px-6">
         <section className="overflow-hidden rounded-2xl border border-[var(--border)]/80 bg-[var(--card)] shadow-[0_24px_80px_-16px_rgba(15,23,42,0.12)] sm:rounded-3xl">
           {/* Progress + nav: one strip inside the card (nothing floats above the box) */}
@@ -322,6 +426,58 @@ export function TemplateDetailForm({ template }: Props) {
                 </div>
                 {draftMessage ? (
                   <p className="mt-3 text-right text-xs font-medium text-[var(--text-secondary)]">{draftMessage}</p>
+                ) : null}
+                {paidUnlocked ? (
+                  <div className="mt-6 rounded-2xl border border-emerald-200/80 bg-gradient-to-b from-emerald-50/95 to-white p-4 shadow-sm sm:p-5">
+                    <p className="font-body text-sm font-semibold text-emerald-900">Payment received — download your files</p>
+                    <p className="font-body mt-1.5 text-xs leading-relaxed text-emerald-900/85">
+                      Export matches the on-page preview: plate video, edited Lottie (including text when template
+                      fonts are configured), and template fonts are loaded before encoding. Output is stepped frame by
+                      frame for clarity (slower but steadier than real-time capture). Background music is not embedded in
+                      this browser export yet — use Remotion/FFmpeg on the server to mux audio, or combine in an editor.
+                    </p>
+                    <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+                      <button
+                        type="button"
+                        disabled={exportJsonBusy || exportVideoBusy}
+                        onClick={() => void downloadEditedJson()}
+                        className="font-body rounded-xl border-2 border-emerald-600/40 bg-white px-5 py-3 text-sm font-semibold text-emerald-900 shadow-sm transition hover:bg-emerald-50/80 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {exportJsonBusy ? "Preparing JSON…" : "Download edited Lottie JSON"}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={exportVideoBusy || exportJsonBusy}
+                        onClick={() => void downloadRenderedVideo()}
+                        className="font-body rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {exportVideoBusy
+                          ? exportProgress != null
+                            ? `Rendering video… ${Math.round(exportProgress * 100)}%`
+                            : "Preparing video…"
+                          : "Download rendered video (plate + Lottie + audio)"}
+                      </button>
+                    </div>
+                    {exportVideoBusy && exportProgress != null ? (
+                      <div
+                        className="mt-3 h-2 w-full overflow-hidden rounded-full bg-emerald-200/70"
+                        role="progressbar"
+                        aria-valuenow={Math.round(exportProgress * 100)}
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                      >
+                        <div
+                          className="h-full rounded-full bg-emerald-600 transition-[width] duration-150"
+                          style={{ width: `${Math.round(exportProgress * 100)}%` }}
+                        />
+                      </div>
+                    ) : null}
+                    {exportMessage ? (
+                      <p className="font-body mt-3 text-sm text-emerald-950/90" role="status">
+                        {exportMessage}
+                      </p>
+                    ) : null}
+                  </div>
                 ) : null}
               </div>
             </div>

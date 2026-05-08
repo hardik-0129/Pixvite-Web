@@ -4,6 +4,11 @@ import Image from "next/image";
 import Lottie, { type LottieRefCurrentProps } from "lottie-react";
 import type { CSSProperties } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  applyFieldValuesToLottie,
+  fetchLottieJsonRewritten,
+  isSafeLottieAnimationData,
+} from "@/lib/lottie-apply-fields";
 import type { FormField, PreviewVideoTextOverlay } from "@/lib/templates";
 
 type Props = {
@@ -58,57 +63,6 @@ function formatTime(totalSeconds: number) {
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
-function ensureSlash(value: string) {
-  return value.endsWith("/") ? value : `${value}/`;
-}
-
-function dirname(urlPath: string) {
-  const clean = urlPath.split("?")[0].split("#")[0];
-  const idx = clean.lastIndexOf("/");
-  return idx >= 0 ? clean.slice(0, idx + 1) : "/";
-}
-
-function parentDir(urlPath: string) {
-  const dir = dirname(urlPath);
-  const trimmed = dir.endsWith("/") ? dir.slice(0, -1) : dir;
-  const idx = trimmed.lastIndexOf("/");
-  return idx >= 0 ? `${trimmed.slice(0, idx + 1)}` : "/";
-}
-
-function joinUrl(base: string, part: string) {
-  const b = ensureSlash(base);
-  const p = part.replace(/^\/+/, "");
-  return `${b}${p}`;
-}
-
-function stripDotSegments(value: string) {
-  return value.replace(/\\/g, "/").replace(/^\.\//, "");
-}
-
-/**
- * Lottie JSON from exports often still points at the admin origin (`http://localhost:3001/...`).
- * After we switched the storefront to same-origin `/template-assets/...`, `joinUrl(relativeBase, absoluteU)`
- * produced broken URLs and images/video layers failed (only text / alpha visible).
- */
-function normalizeTemplateAssetBase(u: string): string | null {
-  const raw = stripDotSegments(u);
-  if (!raw) return null;
-  if (raw.startsWith("/template-assets/")) {
-    return raw.endsWith("/") ? raw : `${raw}/`;
-  }
-  if (/^https?:\/\//i.test(raw)) {
-    try {
-      const parsed = new URL(raw);
-      if (parsed.pathname.startsWith("/template-assets/")) {
-        return parsed.pathname.endsWith("/") ? parsed.pathname : `${parsed.pathname}/`;
-      }
-    } catch {
-      /* ignore */
-    }
-  }
-  return null;
-}
-
 /** Full font file URL → same-origin `/template-assets/...` so `FontFace` is not blocked by CORS. */
 function toProxiedTemplateAssetFileUrl(href: string): string {
   const t = href.trim();
@@ -127,102 +81,6 @@ function toProxiedTemplateAssetFileUrl(href: string): string {
   return t;
 }
 
-function getAssetProbePath(animationData: unknown) {
-  if (!animationData || typeof animationData !== "object") return null;
-  const assets = (animationData as Record<string, unknown>).assets;
-  if (!Array.isArray(assets)) return null;
-  for (const raw of assets) {
-    if (!raw || typeof raw !== "object") continue;
-    const a = raw as Record<string, unknown>;
-    const p = typeof a.p === "string" ? stripDotSegments(a.p) : "";
-    const e = typeof a.e === "number" ? a.e : 0;
-    if (!p || e !== 0) continue;
-    const u = typeof a.u === "string" ? stripDotSegments(a.u) : "";
-    return `${u}${p}`.replace(/^\/+/, "");
-  }
-  return null;
-}
-
-async function resolveAssetBase(lottieUrl: string, animationData: unknown): Promise<string | null> {
-  const probe = getAssetProbePath(animationData);
-  if (!probe) return null;
-  const level0 = dirname(lottieUrl);
-  const level1 = parentDir(level0);
-  const level2 = parentDir(level1);
-
-  // Different exports place images beside JSON, one level up, or two levels up.
-  const candidates = [level0, level1, level2];
-  for (const candidate of candidates) {
-    const probeUrl = joinUrl(candidate, probe);
-    try {
-      const head = await fetch(probeUrl, { method: "HEAD" });
-      if (head.ok) return candidate;
-      // Some dev/static handlers may not support HEAD reliably.
-      const get = await fetch(probeUrl, { method: "GET" });
-      if (get.ok) return candidate;
-    } catch {
-      // Try next candidate.
-    }
-  }
-  // Heuristic fallback: when JSON is in /Json/data.json, assets are commonly one level up.
-  if (/\/json\/$/i.test(level0)) return level1;
-  if (/\/json\//i.test(lottieUrl)) return level1;
-  return null;
-}
-
-function rewriteAssetBase(animationData: unknown, base: string): unknown {
-  if (!animationData || typeof animationData !== "object") return animationData;
-  const clone = JSON.parse(JSON.stringify(animationData)) as Record<string, unknown>;
-  const assets = clone.assets;
-  if (!Array.isArray(assets)) return clone;
-  const nextAssets = assets.map((raw) => {
-    if (!raw || typeof raw !== "object") return raw;
-    const a = raw as Record<string, unknown>;
-    const p = typeof a.p === "string" ? stripDotSegments(a.p) : "";
-    const e = typeof a.e === "number" ? a.e : 0;
-    const u = typeof a.u === "string" ? stripDotSegments(a.u) : "";
-    if (!p || e !== 0) return a;
-    const proxied = normalizeTemplateAssetBase(u);
-    const nextU = proxied ?? joinUrl(base, u);
-    return { ...a, u: nextU };
-  });
-  clone.assets = nextAssets;
-  return clone;
-}
-
-/**
- * lottie-web crashes (e.g. completeLayers → null.length) on incomplete exports:
- * precomp layers (ty === 0) with refId but missing matching `assets` entries.
- */
-function isSafeLottieAnimationData(data: unknown): boolean {
-  if (!data || typeof data !== "object") return false;
-  const obj = data as Record<string, unknown>;
-  const layers = obj.layers;
-  if (!Array.isArray(layers) || layers.length === 0) return false;
-  const assets = Array.isArray(obj.assets) ? obj.assets : [];
-
-  for (const layer of layers) {
-    if (!layer || typeof layer !== "object") return false;
-    const L = layer as Record<string, unknown>;
-    if (L.ty !== 0) continue;
-
-    const refId = L.refId;
-    if (refId === undefined || refId === null) return false;
-    if (assets.length === 0) return false;
-
-    const byId = assets.some((a) => {
-      if (!a || typeof a !== "object") return false;
-      const id = (a as Record<string, unknown>).id;
-      return id === refId || id === String(refId);
-    });
-    const idx = typeof refId === "number" && Number.isFinite(refId) ? refId : Number.parseInt(String(refId), 10);
-    const byIndex = Number.isInteger(idx) && idx >= 0 && idx < assets.length && assets[idx] != null;
-
-    if (!byId && !byIndex) return false;
-  }
-  return true;
-}
-
 function normalizeName(value: string) {
   return value.toLowerCase().replace(/\.[a-z0-9]+$/i, "").replace(/[^a-z0-9]+/g, "");
 }
@@ -231,250 +89,6 @@ function filenameFromUrl(url: string) {
   const clean = url.split("?")[0].split("#")[0];
   const i = clean.lastIndexOf("/");
   return i >= 0 ? clean.slice(i + 1) : clean;
-}
-
-function deepClone<T>(value: T): T {
-  return JSON.parse(JSON.stringify(value)) as T;
-}
-
-function tokenizePath(pathExpr: string): Array<string | number> {
-  const normalized = pathExpr.replace(/\[(\d+)\]/g, ".$1");
-  return normalized
-    .split(".")
-    .map((x) => x.trim())
-    .filter(Boolean)
-    .map((x) => (/^\d+$/.test(x) ? Number(x) : x));
-}
-
-function getByPath(root: unknown, pathExpr: string): unknown {
-  const tokens = tokenizePath(pathExpr);
-  let cur: unknown = root;
-  for (const t of tokens) {
-    if (cur == null) return undefined;
-    if (typeof t === "number") {
-      if (!Array.isArray(cur)) return undefined;
-      cur = cur[t];
-      continue;
-    }
-    if (typeof cur !== "object") return undefined;
-    cur = (cur as Record<string, unknown>)[t];
-  }
-  return cur;
-}
-
-function setByPath(root: unknown, pathExpr: string, value: string): boolean {
-  const tokens = tokenizePath(pathExpr);
-  if (!tokens.length) return false;
-  let cur: unknown = root;
-  for (let i = 0; i < tokens.length - 1; i += 1) {
-    const t = tokens[i];
-    if (typeof t === "number") {
-      if (!Array.isArray(cur)) return false;
-      cur = cur[t];
-    } else {
-      if (typeof cur !== "object" || cur == null) return false;
-      cur = (cur as Record<string, unknown>)[t];
-    }
-    if (cur == null) return false;
-  }
-  const last = tokens[tokens.length - 1];
-  if (typeof last === "number") {
-    if (!Array.isArray(cur) || typeof cur[last] !== "string") return false;
-    cur[last] = value;
-    return true;
-  }
-  if (typeof cur !== "object" || cur == null) return false;
-  if (typeof (cur as Record<string, unknown>)[last] !== "string") return false;
-  (cur as Record<string, unknown>)[last] = value;
-  return true;
-}
-
-function setAllTextKeyframesBySourcePath(root: unknown, sourcePath: string, value: string): boolean {
-  const m = sourcePath.match(/^(.*)\.t\.d\.k\[\d+\]\.s\.t$/);
-  if (!m) return false;
-  const keyframeListPath = `${m[1]}.t.d.k`;
-  const keyframes = getByPath(root, keyframeListPath);
-  if (!Array.isArray(keyframes)) return false;
-  let changed = false;
-  keyframes.forEach((k) => {
-    if (!k || typeof k !== "object") return;
-    const s = (k as Record<string, unknown>).s;
-    if (!s || typeof s !== "object") return;
-    if (typeof (s as Record<string, unknown>).t !== "string") return;
-    (s as Record<string, unknown>).t = value;
-    changed = true;
-  });
-  return changed;
-}
-
-function setAllTextKeyframesByLeafPath(root: unknown, leafPath: string, value: string): boolean {
-  const m = leafPath.match(/^(.*)\.t\.d\.k\[0\]\.s\.t$/);
-  if (!m) return false;
-  const keyframeListPath = `${m[1]}.t.d.k`;
-  const keyframes = getByPath(root, keyframeListPath);
-  if (!Array.isArray(keyframes)) return false;
-  let changed = false;
-  keyframes.forEach((k) => {
-    if (!k || typeof k !== "object") return;
-    const s = (k as Record<string, unknown>).s;
-    if (!s || typeof s !== "object") return;
-    if (typeof (s as Record<string, unknown>).t !== "string") return;
-    (s as Record<string, unknown>).t = value;
-    changed = true;
-  });
-  return changed;
-}
-
-function toLottieTextValue(value: string): string {
-  return value.replace(/\r\n/g, "\n").replace(/\r/g, "\n").replace(/\n/g, "\r");
-}
-
-function normalizeTextForCompare(value: string): string {
-  return value.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
-}
-
-function normalizeAssetKey(value: string) {
-  return value
-    .toLowerCase()
-    .split("?")[0]
-    .split("#")[0]
-    .replace(/^.*[\\/]/, "")
-    .replace(/[^a-z0-9._-]+/g, "");
-}
-
-function applyImageFieldValuesToLottie(
-  next: Record<string, unknown>,
-  formFields: FormField[] | undefined,
-  values: Record<string, string> | undefined
-) {
-  if (!formFields || !values) return;
-  const assets = Array.isArray(next.assets) ? (next.assets as Array<Record<string, unknown>>) : [];
-  if (assets.length === 0) return;
-
-  const replaceAssetWithUrl = (asset: Record<string, unknown>, url: string) => {
-    const clean = typeof url === "string" ? url.trim() : "";
-    if (!clean) return false;
-    asset.u = "";
-    asset.p = clean;
-    asset.e = 0;
-    return true;
-  };
-
-  const findAssetByLayerSourcePath = (sourcePath: string) => {
-    const layerPath = sourcePath.replace(/\.image$/, "");
-    const layer = getByPath(next, layerPath);
-    if (!layer || typeof layer !== "object") return null;
-    const refId = (layer as Record<string, unknown>).refId;
-    if (typeof refId === "string" && refId) {
-      const byId = assets.find((a) => {
-        const id = typeof a.id === "string" ? a.id : "";
-        return id === refId;
-      });
-      if (byId) return byId;
-      const idx = Number.parseInt(refId, 10);
-      if (Number.isInteger(idx) && idx >= 0 && idx < assets.length) return assets[idx];
-    }
-    if (typeof refId === "number" && Number.isInteger(refId) && refId >= 0 && refId < assets.length) {
-      return assets[refId];
-    }
-    return null;
-  };
-
-  const assetByFilename = new Map<string, Record<string, unknown>>();
-  assets.forEach((a) => {
-    const p = typeof a.p === "string" ? a.p : "";
-    const key = normalizeAssetKey(p);
-    if (key) assetByFilename.set(key, a);
-  });
-
-  formFields.forEach((f) => {
-    if ((f.type ?? "text") !== "image") return;
-    const selectedUrl = values[f.name];
-    if (typeof selectedUrl !== "string" || !selectedUrl.trim()) return;
-    const defaultValue = String(f.defaultValue ?? "");
-    if (selectedUrl === defaultValue) return;
-    const selectedKey = normalizeAssetKey(selectedUrl);
-    const defaultKeyExact = normalizeAssetKey(defaultValue);
-    if (selectedKey && defaultKeyExact && selectedKey === defaultKeyExact) return;
-
-    if (typeof f.sourcePath === "string" && f.sourcePath.endsWith(".image")) {
-      const byLayer = findAssetByLayerSourcePath(f.sourcePath);
-      if (byLayer && replaceAssetWithUrl(byLayer, selectedUrl)) return;
-    }
-
-    const defaultKey = normalizeAssetKey(String(f.defaultValue ?? ""));
-    if (defaultKey) {
-      const byDefault = assetByFilename.get(defaultKey);
-      if (byDefault && replaceAssetWithUrl(byDefault, selectedUrl)) return;
-    }
-  });
-}
-
-function collectTextLeafPaths(node: unknown, current = ""): string[] {
-  if (!node || typeof node !== "object") return [];
-  if (Array.isArray(node)) {
-    return node.flatMap((item, idx) => collectTextLeafPaths(item, `${current}[${idx}]`));
-  }
-  const obj = node as Record<string, unknown>;
-  const out: string[] = [];
-  const td = (obj.t as Record<string, unknown> | undefined)?.d as Record<string, unknown> | undefined;
-  const tk = td?.k;
-  if (Array.isArray(tk) && tk.length > 0) {
-    out.push(`${current ? `${current}.` : ""}t.d.k[0].s.t`);
-  }
-  Object.entries(obj).forEach(([k, child]) => {
-    out.push(...collectTextLeafPaths(child, current ? `${current}.${k}` : k));
-  });
-  return out;
-}
-
-function applyFieldValuesToLottie(
-  baseData: unknown,
-  formFields: FormField[] | undefined,
-  values: Record<string, string> | undefined
-): unknown {
-  if (!baseData || typeof baseData !== "object" || !formFields || !values) return baseData;
-  const next = deepClone(baseData) as Record<string, unknown>;
-  applyImageFieldValuesToLottie(next, formFields, values);
-  const usedPaths = new Set<string>();
-  const textPaths = collectTextLeafPaths(next);
-  const appliedText: Array<{ name: string; mode: "sourcePath" | "fallback"; value: string }> = [];
-  const fallbackPathByField = new Map<string, string>();
-
-  formFields.forEach((f) => {
-    if ((f.type ?? "text") === "image") return;
-    const defaultValue = String(f.defaultValue ?? "");
-    if (!defaultValue) return;
-    const matches = textPaths.filter((p) => {
-      const cur = getByPath(next, p);
-      return typeof cur === "string" && normalizeTextForCompare(cur) === normalizeTextForCompare(defaultValue);
-    });
-    // Use fallback path only when it's unambiguous.
-    if (matches.length === 1) fallbackPathByField.set(f.name, matches[0]);
-  });
-
-  formFields.forEach((f) => {
-    if ((f.type ?? "text") === "image") return;
-    const nextValue = values[f.name];
-    if (typeof nextValue !== "string") return;
-    if (nextValue.trim() === "") return;
-    const defaultValue = String(f.defaultValue ?? "");
-    if (normalizeTextForCompare(nextValue) === normalizeTextForCompare(defaultValue)) return;
-    const lottieValue = toLottieTextValue(nextValue);
-    if (f.sourcePath?.includes(".t.d.k[0].s.t") && setAllTextKeyframesBySourcePath(next, f.sourcePath, lottieValue)) {
-      usedPaths.add(f.sourcePath);
-      appliedText.push({ name: f.name, mode: "sourcePath", value: lottieValue });
-      return;
-    }
-    const fallbackPath = fallbackPathByField.get(f.name);
-    if (fallbackPath && setAllTextKeyframesByLeafPath(next, fallbackPath, lottieValue)) {
-      usedPaths.add(fallbackPath);
-      appliedText.push({ name: f.name, mode: "fallback", value: lottieValue });
-      return;
-    }
-  });
-
-  return next;
 }
 
 function parseFontStyleMeta(styleRaw: string): { style: "normal" | "italic"; weight: string } {
@@ -575,22 +189,21 @@ export function TemplateEditorPreview({
   useEffect(() => {
     if (!lottiePreviewUrl) {
       baseLottieDataRef.current = null;
-      setLottieData(null);
-      setLottieError(false);
-      return;
+      const id = requestAnimationFrame(() => {
+        setLottieData(null);
+        setLottieError(false);
+      });
+      return () => cancelAnimationFrame(id);
     }
     let cancelled = false;
-    setLottieData(null);
-    setLottieError(false);
-    fetch(lottiePreviewUrl)
-      .then((r) => {
-        if (!r.ok) throw new Error("fetch failed");
-        return r.json();
-      })
-      .then(async (d) => {
+    queueMicrotask(() => {
+      if (cancelled) return;
+      setLottieData(null);
+      setLottieError(false);
+    });
+    void fetchLottieJsonRewritten(lottiePreviewUrl)
+      .then((withFixedAssets) => {
         if (cancelled) return;
-        const resolvedBase = await resolveAssetBase(lottiePreviewUrl, d);
-        const withFixedAssets = resolvedBase ? rewriteAssetBase(d, resolvedBase) : d;
         if (!isSafeLottieAnimationData(withFixedAssets)) {
           baseLottieDataRef.current = null;
           setLottieData(null);

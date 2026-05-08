@@ -355,7 +355,8 @@ export function TemplateCheckoutModal({ open, onClose, template, onPaymentSucces
               ) : null}
               {paymentSuccess ? (
                 <p className="text-sm text-[var(--text-secondary)]">
-                  Thank you. Your payment was verified. You can close this window or continue editing your invite.
+                  Thank you. Your payment was verified. Use the download buttons on the editor page for your edited JSON
+                  and video file, or close this window to continue.
                 </p>
               ) : null}
               <form autoComplete="off" onSubmit={(e) => e.preventDefault()} className={paymentSuccess ? "pointer-events-none opacity-50" : ""}>

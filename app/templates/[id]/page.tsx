@@ -9,5 +9,5 @@ export default async function TemplateDetailPage({ params }: Props) {
   const template = await getTemplateById(id);
   if (!template) notFound();
 
-  return <TemplateDetailForm template={template} />;
+  return <TemplateDetailForm key={template.id} template={template} />;
 }
