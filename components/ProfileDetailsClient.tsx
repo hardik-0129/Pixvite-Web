@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { withBackendPrefix } from "@/lib/backend-url";
 
 type ProfileUser = {
   firstName: string;
@@ -34,7 +35,7 @@ export function ProfileDetailsClient() {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch("/api/profile", { cache: "no-store" });
+        const res = await fetch(withBackendPrefix("/api/profile"), { cache: "no-store" });
         const data = (await res.json()) as {
           ok?: boolean;
           message?: string;
@@ -95,7 +96,7 @@ export function ProfileDetailsClient() {
     setSaving(true);
     setError(null);
     try {
-      const res = await fetch("/api/profile", {
+      const res = await fetch(withBackendPrefix("/api/profile"), {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

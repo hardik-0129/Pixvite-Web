@@ -1,5 +1,3 @@
-import path from "node:path";
-import { stat, readFile } from "node:fs/promises";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -45,29 +43,33 @@ export async function GET(_: Request, context: { params: ParamsShape | Promise<P
     return NextResponse.json({ error: "Asset path is required." }, { status: 400 });
   }
 
-  const adminAssetsRoot = path.resolve(process.cwd(), "../Pixvite-Admin/public/template-assets");
-  const target = path.resolve(adminAssetsRoot, ...safeParts);
-  const normRoot = path.normalize(adminAssetsRoot).toLowerCase();
-  const normTarget = path.normalize(target).toLowerCase();
-  if (!normTarget.startsWith(normRoot)) {
-    return NextResponse.json({ error: "Asset not found." }, { status: 404 });
+  const backendPrefix = (process.env.BACKEND_PREFIX || process.env.NEXT_PUBLIC_BACKEND_PREFIX || "").trim().replace(/\/+$/, "");
+  if (!backendPrefix) {
+    return NextResponse.json({ error: "BACKEND_PREFIX is not configured." }, { status: 500 });
   }
 
+  const proxiedUrl = `${backendPrefix}/template-assets/${safeParts.map(encodeURIComponent).join("/")}`;
+
   try {
-    const fileStat = await stat(target);
-    if (!fileStat.isFile()) {
-      return NextResponse.json({ error: "Asset not found." }, { status: 404 });
+    const upstream = await fetch(proxiedUrl, { method: "GET", cache: "no-store" });
+    if (!upstream.ok) {
+      return NextResponse.json({ error: "Asset not found." }, { status: upstream.status === 404 ? 404 : 502 });
     }
-    const body = await readFile(target);
-    const ext = path.extname(target);
+
+    const body = await upstream.arrayBuffer();
+    const ext = safeParts[safeParts.length - 1]?.includes(".")
+      ? safeParts[safeParts.length - 1].slice(safeParts[safeParts.length - 1].lastIndexOf("."))
+      : "";
+    const contentType = upstream.headers.get("content-type") || contentTypeFromExt(ext);
+
     return new NextResponse(body, {
       status: 200,
       headers: {
-        "Content-Type": contentTypeFromExt(ext),
-        "Cache-Control": "public, max-age=31536000, immutable",
+        "Content-Type": contentType,
+        "Cache-Control": upstream.headers.get("cache-control") || "public, max-age=31536000, immutable",
       },
     });
   } catch {
-    return NextResponse.json({ error: "Asset not found." }, { status: 404 });
+    return NextResponse.json({ error: "Backend asset service unreachable." }, { status: 502 });
   }
 }

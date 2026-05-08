@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { withBackendPrefix } from "@/lib/backend-url";
 
 type Mode = "login" | "signup";
 
@@ -54,7 +55,7 @@ export function LoginSignupClient() {
     setSendingOtp(true);
     setMessage("");
     try {
-      const res = await fetch("/api/auth/send-otp", {
+      const res = await fetch(withBackendPrefix("/api/auth/send-otp"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
@@ -87,7 +88,7 @@ export function LoginSignupClient() {
     setLoading(true);
     setMessage("");
     try {
-      const res = await fetch("/api/auth/signin", {
+      const res = await fetch(withBackendPrefix("/api/auth/signin"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -118,7 +119,7 @@ export function LoginSignupClient() {
     setLoading(true);
     setMessage("");
     try {
-      const res = await fetch("/api/auth/signup", {
+      const res = await fetch(withBackendPrefix("/api/auth/signup"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

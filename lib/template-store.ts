@@ -30,6 +30,18 @@ type CategoryDoc = {
 
 const TEMPLATES_COLLECTION = "templates";
 const CATEGORIES_COLLECTION = "categories";
+const BACKEND_PREFIX =
+  (process.env.BACKEND_PREFIX || process.env.NEXT_PUBLIC_BACKEND_PREFIX || "").trim().replace(/\/+$/, "");
+
+function withBackendPrefix(url?: string) {
+  if (!url) return url;
+  const value = url.trim();
+  if (!value) return value;
+  if (/^https?:\/\//i.test(value) || value.startsWith("data:") || value.startsWith("blob:")) return value;
+  if (!BACKEND_PREFIX) return value;
+  if (value.startsWith("/")) return `${BACKEND_PREFIX}${value}`;
+  return `${BACKEND_PREFIX}/${value}`;
+}
 
 function buildAutoOverlays(fields: Template["formFields"]): Template["previewVideoTextOverlays"] {
   const textFields = fields.filter((f) => (f.type ?? "text") !== "image" && isFormFieldEnabled(f)).slice(0, 6);
@@ -60,12 +72,12 @@ function mapDoc(doc: TemplateDoc): Template {
     durationSeconds: Number.isFinite(doc.durationSeconds) ? doc.durationSeconds : 30,
     price: Number.isFinite(doc.price) ? doc.price : 0,
     originalPrice: Number.isFinite(doc.originalPrice) ? doc.originalPrice : Number.isFinite(doc.price) ? doc.price : 0,
-    thumbnail: doc.thumbnail || "https://picsum.photos/seed/pixvite-template/400/711",
+    thumbnail: withBackendPrefix(doc.thumbnail) || "https://picsum.photos/seed/pixvite-template/400/711",
     formFields,
-    previewVideoUrl: doc.previewVideoUrl,
-    previewAudioUrl: doc.previewAudioUrl,
-    previewFontUrls: Array.isArray(doc.previewFontUrls) ? doc.previewFontUrls : [],
-    lottiePreviewUrl: doc.lottiePreviewUrl,
+    previewVideoUrl: withBackendPrefix(doc.previewVideoUrl),
+    previewAudioUrl: withBackendPrefix(doc.previewAudioUrl),
+    previewFontUrls: Array.isArray(doc.previewFontUrls) ? doc.previewFontUrls.map((url) => withBackendPrefix(url) || url) : [],
+    lottiePreviewUrl: withBackendPrefix(doc.lottiePreviewUrl),
     previewVideoTextOverlays: buildAutoOverlays(formFields),
   };
 }

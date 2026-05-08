@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { Template } from "@/lib/templates";
 
 type Props = {
@@ -34,6 +34,7 @@ function HoverPreviewSpinner() {
 
 export function TemplateCard({ template }: Props) {
   const { id, title, category, subcategory, functions, duration, price, originalPrice, thumbnail, previewVideoUrl } = template;
+  const fallbackThumb = "https://picsum.photos/seed/pixvite-template/400/711";
   const showFunctionsLine = functions >= 3;
   const showSubLine =
     subcategory &&
@@ -43,6 +44,11 @@ export function TemplateCard({ template }: Props) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [hoverPreview, setHoverPreview] = useState(false);
   const [videoReady, setVideoReady] = useState(false);
+  const [thumbSrc, setThumbSrc] = useState(thumbnail || fallbackThumb);
+
+  useEffect(() => {
+    setThumbSrc(thumbnail || fallbackThumb);
+  }, [thumbnail]);
 
   const handlePointerEnter = useCallback(() => {
     if (!previewVideoUrl) return;
@@ -76,9 +82,13 @@ export function TemplateCard({ template }: Props) {
       onPointerLeave={handlePointerLeave}
     >
       <Image
-        src={thumbnail}
+        src={thumbSrc || fallbackThumb}
         alt={title}
         fill
+        unoptimized={Boolean(thumbSrc?.startsWith("http://localhost") || thumbSrc?.startsWith("http://127.0.0.1"))}
+        onError={() => {
+          if (thumbSrc !== fallbackThumb) setThumbSrc(fallbackThumb);
+        }}
         className="object-cover transition-opacity duration-300 group-hover:scale-[1.02]"
         sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
       />

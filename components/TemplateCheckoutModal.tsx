@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { RazorpayPaymentFailedResponse, RazorpaySuccessResponse } from "@/types/razorpay-checkout";
 import type { Template } from "@/lib/templates";
+import { withBackendPrefix } from "@/lib/backend-url";
 
 const RAZORPAY_SCRIPT_ID = "razorpay-checkout-js";
 const RAZORPAY_SCRIPT_SRC = "https://checkout.razorpay.com/v1/checkout.js";
@@ -115,7 +116,7 @@ export function TemplateCheckoutModal({ open, onClose, template, onPaymentSucces
     setPaymentError(null);
     setCouponApplying(true);
     try {
-      const res = await fetch("/api/coupons/validate", {
+      const res = await fetch(withBackendPrefix("/api/coupons/validate"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ templateId: template.id, code: c }),
@@ -196,7 +197,7 @@ export function TemplateCheckoutModal({ open, onClose, template, onPaymentSucces
       setCheckoutInProgress(true);
     }
     try {
-      const res = await fetch("/api/payments/create-order", {
+      const res = await fetch(withBackendPrefix("/api/payments/create-order"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -256,7 +257,7 @@ export function TemplateCheckoutModal({ open, onClose, template, onPaymentSucces
         },
         handler: async (response: RazorpaySuccessResponse) => {
           try {
-            const v = await fetch("/api/payments/verify", {
+            const v = await fetch(withBackendPrefix("/api/payments/verify"), {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
