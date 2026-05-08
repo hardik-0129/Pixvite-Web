@@ -38,7 +38,10 @@ export type Template = {
   originalPrice: number;
   thumbnail: string;
   formFields: FormField[];
+  /** Short clip for grid hover / marketing (optional). */
   previewVideoUrl?: string;
+  /** Full template plate behind Lottie (e.g. `Alpha.mp4` from zip) — separate from hover preview. */
+  backgroundVideoUrl?: string;
   previewAudioUrl?: string;
   previewFontUrls?: string[];
   previewVideoTextOverlays?: PreviewVideoTextOverlay[];

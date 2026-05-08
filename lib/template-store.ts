@@ -16,6 +16,7 @@ type TemplateDoc = {
   thumbnail: string;
   formFields: Template["formFields"];
   previewVideoUrl?: string;
+  backgroundVideoUrl?: string;
   previewAudioUrl?: string;
   previewFontUrls?: string[];
   lottiePreviewUrl?: string;
@@ -33,11 +34,46 @@ const CATEGORIES_COLLECTION = "categories";
 const BACKEND_PREFIX =
   (process.env.BACKEND_PREFIX || process.env.NEXT_PUBLIC_BACKEND_PREFIX || "").trim().replace(/\/+$/, "");
 
+function backendOrigin(): URL | null {
+  if (!BACKEND_PREFIX) return null;
+  try {
+    return new URL(/^https?:\/\//i.test(BACKEND_PREFIX) ? BACKEND_PREFIX : `http://${BACKEND_PREFIX}`);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Asset URLs for the storefront should stay **same-origin** (`/template-assets/...`) when
+ * `next.config` rewrites that path to the admin/API server — avoids CORS on `fetch()` (Lottie JSON)
+ * and flaky `/_next/image` fetches to another port.
+ */
 function withBackendPrefix(url?: string) {
   if (!url) return url;
   const value = url.trim();
   if (!value) return value;
-  if (/^https?:\/\//i.test(value) || value.startsWith("data:") || value.startsWith("blob:")) return value;
+  if (value.startsWith("data:") || value.startsWith("blob:")) return value;
+
+  const admin = backendOrigin();
+
+  if (/^https?:\/\//i.test(value)) {
+    if (admin) {
+      try {
+        const u = new URL(value);
+        if (u.origin === admin.origin && u.pathname.startsWith("/template-assets/")) {
+          return `${u.pathname}${u.search}${u.hash}`;
+        }
+      } catch {
+        /* keep absolute */
+      }
+    }
+    return value;
+  }
+
+  if (value.startsWith("/template-assets/")) {
+    return value;
+  }
+
   if (!BACKEND_PREFIX) return value;
   if (value.startsWith("/")) return `${BACKEND_PREFIX}${value}`;
   return `${BACKEND_PREFIX}/${value}`;
@@ -75,6 +111,7 @@ function mapDoc(doc: TemplateDoc): Template {
     thumbnail: withBackendPrefix(doc.thumbnail) || "https://picsum.photos/seed/pixvite-template/400/711",
     formFields,
     previewVideoUrl: withBackendPrefix(doc.previewVideoUrl),
+    backgroundVideoUrl: withBackendPrefix(doc.backgroundVideoUrl),
     previewAudioUrl: withBackendPrefix(doc.previewAudioUrl),
     previewFontUrls: Array.isArray(doc.previewFontUrls) ? doc.previewFontUrls.map((url) => withBackendPrefix(url) || url) : [],
     lottiePreviewUrl: withBackendPrefix(doc.lottiePreviewUrl),

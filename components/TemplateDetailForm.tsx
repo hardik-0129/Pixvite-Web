@@ -200,6 +200,7 @@ export function TemplateDetailForm({ template }: Props) {
                 posterSrc={template.thumbnail}
                 posterAlt={title}
                 previewVideoUrl={template.previewVideoUrl}
+                backgroundVideoUrl={template.backgroundVideoUrl}
                 previewAudioUrl={template.previewAudioUrl}
                 previewFontUrls={template.previewFontUrls}
                 fieldValues={values}

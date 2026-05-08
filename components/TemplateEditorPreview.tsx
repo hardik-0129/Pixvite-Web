@@ -3,15 +3,17 @@
 import Image from "next/image";
 import Lottie, { type LottieRefCurrentProps } from "lottie-react";
 import type { CSSProperties } from "react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FormField, PreviewVideoTextOverlay } from "@/lib/templates";
 
 type Props = {
   posterSrc: string;
   posterAlt: string;
   embedUrl?: string | null;
-  /** MP4 (or other) URL for HTML5 preview — takes priority over Lottie and iframe. */
+  /** Short clip (e.g. grid hover) — not the Lottie plate. */
   previewVideoUrl?: string | null;
+  /** Plate video behind Lottie (e.g. zip `Alpha.mp4`). Takes priority over `previewVideoUrl` for the editor video layer. */
+  backgroundVideoUrl?: string | null;
   /** Optional audio track (auto-detected from uploaded assets, e.g. mp3). */
   previewAudioUrl?: string | null;
   /** Uploaded font files from zip/folder for matching Lottie fonts. */
@@ -83,6 +85,48 @@ function stripDotSegments(value: string) {
   return value.replace(/\\/g, "/").replace(/^\.\//, "");
 }
 
+/**
+ * Lottie JSON from exports often still points at the admin origin (`http://localhost:3001/...`).
+ * After we switched the storefront to same-origin `/template-assets/...`, `joinUrl(relativeBase, absoluteU)`
+ * produced broken URLs and images/video layers failed (only text / alpha visible).
+ */
+function normalizeTemplateAssetBase(u: string): string | null {
+  const raw = stripDotSegments(u);
+  if (!raw) return null;
+  if (raw.startsWith("/template-assets/")) {
+    return raw.endsWith("/") ? raw : `${raw}/`;
+  }
+  if (/^https?:\/\//i.test(raw)) {
+    try {
+      const parsed = new URL(raw);
+      if (parsed.pathname.startsWith("/template-assets/")) {
+        return parsed.pathname.endsWith("/") ? parsed.pathname : `${parsed.pathname}/`;
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+  return null;
+}
+
+/** Full font file URL → same-origin `/template-assets/...` so `FontFace` is not blocked by CORS. */
+function toProxiedTemplateAssetFileUrl(href: string): string {
+  const t = href.trim();
+  if (!t) return t;
+  if (t.startsWith("/template-assets/")) return t;
+  if (/^https?:\/\//i.test(t)) {
+    try {
+      const u = new URL(t);
+      if (u.pathname.startsWith("/template-assets/")) {
+        return `${u.pathname}${u.search}`;
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+  return t;
+}
+
 function getAssetProbePath(animationData: unknown) {
   if (!animationData || typeof animationData !== "object") return null;
   const assets = (animationData as Record<string, unknown>).assets;
@@ -138,7 +182,9 @@ function rewriteAssetBase(animationData: unknown, base: string): unknown {
     const e = typeof a.e === "number" ? a.e : 0;
     const u = typeof a.u === "string" ? stripDotSegments(a.u) : "";
     if (!p || e !== 0) return a;
-    return { ...a, u: joinUrl(base, u) };
+    const proxied = normalizeTemplateAssetBase(u);
+    const nextU = proxied ?? joinUrl(base, u);
+    return { ...a, u: nextU };
   });
   clone.assets = nextAssets;
   return clone;
@@ -451,6 +497,7 @@ export function TemplateEditorPreview({
   posterAlt,
   embedUrl,
   previewVideoUrl,
+  backgroundVideoUrl,
   previewAudioUrl,
   previewFontUrls,
   fieldValues,
@@ -468,6 +515,12 @@ export function TemplateEditorPreview({
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
 
+  /** Lottie plate: background (Alpha) first, else legacy single `previewVideoUrl`. */
+  const plateVideoSrc = useMemo(
+    () => (backgroundVideoUrl?.trim() || previewVideoUrl?.trim() || "").trim(),
+    [backgroundVideoUrl, previewVideoUrl]
+  );
+
   const recoverLottieData = useCallback(() => {
     const base = baseLottieDataRef.current;
     if (!base) return;
@@ -477,7 +530,7 @@ export function TemplateEditorPreview({
   }, [formFields, fieldValues]);
 
   const hasLottie = Boolean(lottiePreviewUrl && lottieData && !lottieError);
-  const hasVideo = Boolean(previewVideoUrl);
+  const hasVideo = Boolean(plateVideoSrc);
   const hasAudio = Boolean(previewAudioUrl);
   const useComposite = Boolean(hasVideo && hasLottie);
   const useImageComposite = Boolean(!hasVideo && hasLottie && posterSrc);
@@ -495,7 +548,7 @@ export function TemplateEditorPreview({
 
   const startPlaybackFromUserGesture = useCallback(async () => {
     const tasks: Array<Promise<unknown>> = [];
-    if (previewVideoUrl && videoRef.current) {
+    if (plateVideoSrc && videoRef.current) {
       tasks.push(videoRef.current.play());
     }
     if (previewAudioUrl && audioRef.current) {
@@ -509,7 +562,7 @@ export function TemplateEditorPreview({
     const anyPlayed = settled.some((r) => r.status === "fulfilled");
     // Keep Lottie preview available even if browser blocks media autoplay.
     setPlaying(anyPlayed || hasLottie);
-  }, [previewVideoUrl, previewAudioUrl, hasLottie]);
+  }, [plateVideoSrc, previewAudioUrl, hasLottie]);
 
   const togglePlaybackFromUserGesture = useCallback(async () => {
     if (playing) {
@@ -577,7 +630,17 @@ export function TemplateEditorPreview({
     const fontList = ((root.fonts as Record<string, unknown> | undefined)?.list ?? []) as Array<Record<string, unknown>>;
     if (!Array.isArray(fontList) || fontList.length === 0) return;
 
-    const candidates = previewFontUrls.map((url) => ({ url, key: normalizeName(filenameFromUrl(url)) }));
+    const candidates = previewFontUrls.map((href) => {
+      const url = toProxiedTemplateAssetFileUrl(href);
+      const stem = filenameFromUrl(url).replace(/\.[^.]+$/i, "");
+      const keys = new Set<string>();
+      keys.add(normalizeName(filenameFromUrl(url)));
+      stem.split(/[-_\s]+/).forEach((part) => {
+        const k = normalizeName(part);
+        if (k.length >= 2) keys.add(k);
+      });
+      return { url, keys: Array.from(keys) };
+    });
     const already = new Set<string>();
     fontList.forEach((f) => {
       const family = typeof f.fFamily === "string" ? f.fFamily : "";
@@ -602,7 +665,7 @@ export function TemplateEditorPreview({
 
       const best =
         candidates
-          .map((c) => ({ c, s: scoreCandidate(c.key) }))
+          .map((c) => ({ c, s: Math.max(0, ...c.keys.map((k) => scoreCandidate(k))) }))
           .sort((a, b) => b.s - a.s)[0]?.c ?? candidates[0];
       if (!best) return;
 
@@ -627,13 +690,13 @@ export function TemplateEditorPreview({
 
   useEffect(() => {
     const v = videoRef.current;
-    if (!v || !previewVideoUrl) return;
+    if (!v || !plateVideoSrc) return;
     if (playing) {
       void v.play().catch(() => setPlaying(false));
     } else {
       v.pause();
     }
-  }, [playing, previewVideoUrl]);
+  }, [playing, plateVideoSrc]);
 
   useEffect(() => {
     const a = audioRef.current;
@@ -647,7 +710,7 @@ export function TemplateEditorPreview({
 
   useEffect(() => {
     const v = videoRef.current;
-    if (!v || !previewVideoUrl) return;
+    if (!v || !plateVideoSrc) return;
     const onTime = () => {
       setCurrentTime(v.currentTime);
       if (Number.isFinite(v.duration) && v.duration > 0) setDuration(v.duration);
@@ -670,10 +733,10 @@ export function TemplateEditorPreview({
       v.removeEventListener("loadedmetadata", onMeta);
       v.removeEventListener("ended", onEnded);
     };
-  }, [previewVideoUrl, previewAudioUrl]);
+  }, [plateVideoSrc, previewAudioUrl]);
 
   useEffect(() => {
-    if (previewVideoUrl) return;
+    if (plateVideoSrc) return;
     const a = audioRef.current;
     if (!a || !previewAudioUrl) return;
     const onTime = () => {
@@ -692,7 +755,7 @@ export function TemplateEditorPreview({
       a.removeEventListener("loadedmetadata", onMeta);
       a.removeEventListener("ended", onEnded);
     };
-  }, [previewAudioUrl, previewVideoUrl]);
+  }, [previewAudioUrl, plateVideoSrc]);
 
   useEffect(() => {
     if (!playing || !hasLottie) return;
@@ -755,7 +818,7 @@ export function TemplateEditorPreview({
   }, [playing, hasLottie, lottieData, getMasterTime]);
 
   const restart = useCallback(() => {
-    if (previewVideoUrl && videoRef.current) {
+    if (plateVideoSrc && videoRef.current) {
       const v = videoRef.current;
       v.currentTime = 0;
       if (audioRef.current && previewAudioUrl) {
@@ -792,7 +855,7 @@ export function TemplateEditorPreview({
       return;
     }
     setPlaying(false);
-  }, [previewVideoUrl, previewAudioUrl, useLottie, hasLottie]);
+  }, [plateVideoSrc, previewAudioUrl, useLottie, hasLottie]);
 
   const progressPct = duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0;
 
@@ -811,12 +874,12 @@ export function TemplateEditorPreview({
               src={embedUrl!}
               className="h-full w-full border-0"
             />
-          ) : (useComposite || useVideo) && previewVideoUrl ? (
+          ) : (useComposite || useVideo) && plateVideoSrc ? (
             <div className="relative h-full w-full bg-neutral-950">
               <video
-                key={previewVideoUrl}
+                key={plateVideoSrc}
                 ref={videoRef}
-                src={previewVideoUrl}
+                src={plateVideoSrc}
                 poster={posterSrc}
                 playsInline
                 preload="metadata"
@@ -949,7 +1012,7 @@ export function TemplateEditorPreview({
         {useVideo &&
         !lottiePreviewUrl &&
         !hasLottie &&
-        previewVideoUrl &&
+        plateVideoSrc &&
         videoTextOverlays &&
         videoTextOverlays.length > 0 &&
         fieldValues ? (
