@@ -5,7 +5,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Template } from "@/lib/templates";
 import { isFormFieldEnabled } from "@/lib/templates";
 import { buildEditedLottieForDownload } from "@/lib/lottie-apply-fields";
+import { absolutizeLottieUrlsForServer, absolutizeUrlIfRelative } from "@/lib/lottie-absolutize-assets";
+import { resolveTemplatePlateVideoUrl } from "@/lib/template-plate-url";
 import { renderEditedTemplateVideo } from "@/lib/render-template-video-client";
+import { renderTemplateVideoOnServer } from "@/lib/render-template-video-server-client";
 import { EditorProgressStepper } from "./EditorProgressStepper";
 import { InstagramSupportLink } from "./InstagramSupportLink";
 import { TemplateCheckoutModal } from "./TemplateCheckoutModal";
@@ -174,7 +177,8 @@ export function TemplateDetailForm({ template }: Props) {
     setValues(initial);
     if (typeof window === "undefined") return;
     try {
-      window.localStorage.setItem(draftStorageKey, JSON.stringify(initial));
+      // Hard reset: remove persisted draft so next refresh always uses template defaults.
+      window.localStorage.removeItem(draftStorageKey);
       setDraftMessage("Reset to default");
     } catch {
       setDraftMessage("Reset done (draft not saved)");
@@ -188,8 +192,29 @@ export function TemplateDetailForm({ template }: Props) {
   ];
 
   const plateVideoUrl = useMemo(
-    () => (template.backgroundVideoUrl || template.previewVideoUrl || "").trim(),
-    [template.backgroundVideoUrl, template.previewVideoUrl]
+    () =>
+      resolveTemplatePlateVideoUrl({
+        backgroundVideoUrl: template.backgroundVideoUrl,
+        previewVideoUrl: template.previewVideoUrl,
+        lottiePreviewUrl: template.lottiePreviewUrl,
+      }).trim(),
+    [template.backgroundVideoUrl, template.previewVideoUrl, template.lottiePreviewUrl]
+  );
+
+  const lottieRenderServerUrl = useMemo(
+    () => (process.env.NEXT_PUBLIC_LOTTIE_RENDER_SERVER_URL || "").trim(),
+    []
+  );
+  const lottieRenderSecret = useMemo(
+    () => (process.env.NEXT_PUBLIC_LOTTIE_RENDER_SECRET || "").trim(),
+    []
+  );
+  const lottieRenderEngine = useMemo(
+    () =>
+      ((process.env.NEXT_PUBLIC_LOTTIE_RENDER_ENGINE || "remotion").trim().toLowerCase() === "browser"
+        ? "browser"
+        : "remotion"),
+    []
   );
 
   const handlePaymentVerified = useCallback(() => {
@@ -228,33 +253,68 @@ export function TemplateDetailForm({ template }: Props) {
       setExportMessage("A Lottie JSON file is required to render the video.");
       return;
     }
+    const useBrowserEngine = lottieRenderEngine === "browser";
     if (!plateVideoUrl) {
-      setExportMessage("This template is missing a plate video (set background or preview video on the template).");
+      setExportMessage("This template is missing a background video.");
       return;
     }
     setExportVideoBusy(true);
     try {
       const edited = await buildEditedLottieForDownload(template.lottiePreviewUrl, template.formFields, values);
-      const { blob, extension } = await renderEditedTemplateVideo({
-        animationData: edited,
-        plateVideoUrl,
-        previewFontUrls: template.previewFontUrls ?? null,
-        audioUrl: template.previewAudioUrl?.trim() || null,
-        onProgress: (r) => setExportProgress(r),
-      });
-      downloadBlob(blob, `${template.id}-export.${extension}`);
-      setExportMessage(
-        extension === "mp4"
-          ? "MP4 download started."
-          : "WebM download started. You can convert to MP4 with VLC or FFmpeg if needed."
-      );
+
+      if (lottieRenderServerUrl) {
+        const origin =
+          typeof window !== "undefined" && window.location?.origin ? window.location.origin : "";
+        const payload = origin ? absolutizeLottieUrlsForServer(edited, origin) : edited;
+        const audio = template.previewAudioUrl?.trim() || null;
+        const fonts = template.previewFontUrls?.length
+          ? template.previewFontUrls.map((u) => (origin ? absolutizeUrlIfRelative(u, origin) : u))
+          : null;
+        const blob = await renderTemplateVideoOnServer({
+          baseUrl: lottieRenderServerUrl,
+          animationData: payload,
+          plateVideoUrl: origin ? absolutizeUrlIfRelative(plateVideoUrl, origin) : plateVideoUrl,
+          audioUrl: audio && origin ? absolutizeUrlIfRelative(audio, origin) : audio,
+          previewFontUrls: fonts,
+          renderSecret: lottieRenderSecret || null,
+          renderEngine: useBrowserEngine ? "browser" : "remotion",
+          onProgress: (r) => setExportProgress(r),
+        });
+        downloadBlob(blob, `${template.id}-export.mp4`);
+        setExportMessage("MP4 download started (server render).");
+      } else {
+        const { blob, extension } = await renderEditedTemplateVideo({
+          animationData: edited,
+          plateVideoUrl,
+          previewFontUrls: template.previewFontUrls ?? null,
+          audioUrl: template.previewAudioUrl?.trim() || null,
+          onProgress: (r) => setExportProgress(r),
+        });
+        downloadBlob(blob, `${template.id}-export.${extension}`);
+        setExportMessage(
+          extension === "mp4"
+            ? "MP4 download started."
+            : "WebM download started. You can convert to MP4 with VLC or FFmpeg if needed."
+        );
+      }
     } catch (e) {
       setExportMessage(e instanceof Error ? e.message : "Video export failed.");
     } finally {
       setExportVideoBusy(false);
       setExportProgress(null);
     }
-  }, [plateVideoUrl, template.formFields, template.lottiePreviewUrl, template.id, template.previewAudioUrl, template.previewFontUrls, values]);
+  }, [
+    plateVideoUrl,
+    lottieRenderServerUrl,
+    lottieRenderSecret,
+    lottieRenderEngine,
+    template.formFields,
+    template.lottiePreviewUrl,
+    template.id,
+    template.previewAudioUrl,
+    template.previewFontUrls,
+    values,
+  ]);
 
   const title = `${template.id} | ${template.title}`;
 
@@ -431,10 +491,9 @@ export function TemplateDetailForm({ template }: Props) {
                   <div className="mt-6 rounded-2xl border border-emerald-200/80 bg-gradient-to-b from-emerald-50/95 to-white p-4 shadow-sm sm:p-5">
                     <p className="font-body text-sm font-semibold text-emerald-900">Payment received — download your files</p>
                     <p className="font-body mt-1.5 text-xs leading-relaxed text-emerald-900/85">
-                      Export matches the on-page preview: plate video, edited Lottie (including text when template
-                      fonts are configured), and template fonts are loaded before encoding. Output is stepped frame by
-                      frame for clarity (slower but steadier than real-time capture). Background music is not embedded in
-                      this browser export yet — use Remotion/FFmpeg on the server to mux audio, or combine in an editor.
+                      {lottieRenderServerUrl
+                        ? "Video is rendered on the render server (Remotion + FFmpeg): plate MP4, edited Lottie, template fonts, and background audio are muxed into a single MP4."
+                        : "Browser export matches the on-page preview (plate + Lottie + fonts). Encoding uses MediaRecorder; format may be WebM depending on the browser. For guaranteed MP4 with FFmpeg mux, set NEXT_PUBLIC_LOTTIE_RENDER_SERVER_URL and run the render-server."}
                     </p>
                     <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                       <button
@@ -454,8 +513,12 @@ export function TemplateDetailForm({ template }: Props) {
                         {exportVideoBusy
                           ? exportProgress != null
                             ? `Rendering video… ${Math.round(exportProgress * 100)}%`
-                            : "Preparing video…"
-                          : "Download rendered video (plate + Lottie + audio)"}
+                            : lottieRenderServerUrl
+                              ? "Rendering on server…"
+                              : "Preparing video…"
+                          : lottieRenderServerUrl
+                            ? "Download MP4 (server: plate + Lottie + audio)"
+                            : "Download rendered video (plate + Lottie + audio)"}
                       </button>
                     </div>
                     {exportVideoBusy && exportProgress != null ? (

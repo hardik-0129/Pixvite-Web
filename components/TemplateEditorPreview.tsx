@@ -10,6 +10,7 @@ import {
   isSafeLottieAnimationData,
 } from "@/lib/lottie-apply-fields";
 import type { FormField, PreviewVideoTextOverlay } from "@/lib/templates";
+import { resolveTemplatePlateVideoUrl } from "@/lib/template-plate-url";
 
 type Props = {
   posterSrc: string;
@@ -129,10 +130,15 @@ export function TemplateEditorPreview({
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
 
-  /** Lottie plate: background (Alpha) first, else legacy single `previewVideoUrl`. */
+  /** Lottie plate: CMS `backgroundVideoUrl`, else `Alpha.mp4` beside Lottie JSON, else hover `previewVideoUrl`. */
   const plateVideoSrc = useMemo(
-    () => (backgroundVideoUrl?.trim() || previewVideoUrl?.trim() || "").trim(),
-    [backgroundVideoUrl, previewVideoUrl]
+    () =>
+      resolveTemplatePlateVideoUrl({
+        backgroundVideoUrl,
+        previewVideoUrl,
+        lottiePreviewUrl,
+      }).trim(),
+    [backgroundVideoUrl, previewVideoUrl, lottiePreviewUrl]
   );
 
   const recoverLottieData = useCallback(() => {

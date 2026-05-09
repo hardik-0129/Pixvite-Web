@@ -46,6 +46,10 @@ export type Template = {
   previewFontUrls?: string[];
   previewVideoTextOverlays?: PreviewVideoTextOverlay[];
   lottiePreviewUrl?: string;
+  /** Optional AE project URL (.aep / .aepx / zipped template) for nexrender path. */
+  aeTemplateUrl?: string;
+  /** AE composition name used for server-side aerender. */
+  aeComposition?: string;
   status?: "active" | "draft";
 };
 

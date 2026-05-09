@@ -20,6 +20,8 @@ type TemplateDoc = {
   previewAudioUrl?: string;
   previewFontUrls?: string[];
   lottiePreviewUrl?: string;
+  aeTemplateUrl?: string;
+  aeComposition?: string;
   createdAt?: string;
 };
 
@@ -95,8 +97,39 @@ function buildAutoOverlays(fields: Template["formFields"]): Template["previewVid
   }));
 }
 
+function normalizeMediaUrl(url?: string): string | undefined {
+  const v = withBackendPrefix(url);
+  const out = typeof v === "string" ? v.trim() : "";
+  return out || undefined;
+}
+
+function uniqueStrings(values: Array<string | undefined>): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of values) {
+    const v = (raw || "").trim();
+    if (!v || seen.has(v)) continue;
+    seen.add(v);
+    out.push(v);
+  }
+  return out;
+}
+
 function mapDoc(doc: TemplateDoc): Template {
   const formFields = Array.isArray(doc.formFields) ? doc.formFields : [];
+  const backgroundVideoUrl = normalizeMediaUrl(doc.backgroundVideoUrl);
+  let previewVideoUrl = normalizeMediaUrl(doc.previewVideoUrl);
+  if (backgroundVideoUrl && previewVideoUrl && backgroundVideoUrl === previewVideoUrl) {
+    previewVideoUrl = undefined;
+  }
+  const previewAudioUrl = normalizeMediaUrl(doc.previewAudioUrl);
+  const lottiePreviewUrl = normalizeMediaUrl(doc.lottiePreviewUrl);
+  const aeTemplateUrl = normalizeMediaUrl(doc.aeTemplateUrl);
+  const aeComposition = typeof doc.aeComposition === "string" ? doc.aeComposition.trim() || undefined : undefined;
+  const previewFontUrls = uniqueStrings(
+    Array.isArray(doc.previewFontUrls) ? doc.previewFontUrls.map((url) => normalizeMediaUrl(url)) : []
+  );
+
   return {
     id: doc.templateId,
     title: doc.title,
@@ -108,13 +141,15 @@ function mapDoc(doc: TemplateDoc): Template {
     durationSeconds: Number.isFinite(doc.durationSeconds) ? doc.durationSeconds : 30,
     price: Number.isFinite(doc.price) ? doc.price : 0,
     originalPrice: Number.isFinite(doc.originalPrice) ? doc.originalPrice : Number.isFinite(doc.price) ? doc.price : 0,
-    thumbnail: withBackendPrefix(doc.thumbnail) || "https://picsum.photos/seed/pixvite-template/400/711",
+    thumbnail: normalizeMediaUrl(doc.thumbnail) || "https://picsum.photos/seed/pixvite-template/400/711",
     formFields,
-    previewVideoUrl: withBackendPrefix(doc.previewVideoUrl),
-    backgroundVideoUrl: withBackendPrefix(doc.backgroundVideoUrl),
-    previewAudioUrl: withBackendPrefix(doc.previewAudioUrl),
-    previewFontUrls: Array.isArray(doc.previewFontUrls) ? doc.previewFontUrls.map((url) => withBackendPrefix(url) || url) : [],
-    lottiePreviewUrl: withBackendPrefix(doc.lottiePreviewUrl),
+    previewVideoUrl,
+    backgroundVideoUrl,
+    previewAudioUrl,
+    previewFontUrls,
+    lottiePreviewUrl,
+    aeTemplateUrl,
+    aeComposition,
     previewVideoTextOverlays: buildAutoOverlays(formFields),
   };
 }
