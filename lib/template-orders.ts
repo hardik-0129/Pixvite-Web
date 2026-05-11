@@ -75,3 +75,12 @@ export async function getTemplateOrderCouponRaw(razorpayOrderId: string): Promis
   const c = doc?.coupon;
   return typeof c === "string" && c.trim() ? c.trim() : null;
 }
+
+export async function getTemplateOrdersByEmail(email: string): Promise<TemplateOrderDoc[]> {
+  const db = await getDb();
+  return db
+    .collection<TemplateOrderDoc>(COLLECTION)
+    .find({ email, status: "paid" })
+    .sort({ createdAt: -1 })
+    .toArray();
+}

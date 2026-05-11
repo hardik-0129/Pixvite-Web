@@ -7,6 +7,7 @@ export type AuthUser = {
   lastName: string;
   email: string;
   phone: string;
+  passwordHash?: string;
   role: AuthRole;
   createdAt: string;
 };

@@ -106,6 +106,7 @@ export function TemplateDetailForm({ template }: Props) {
     return next;
   }, [template.formFields]);
   const draftStorageKey = useMemo(() => `template-draft:${template.id}`, [template.id]);
+  const draftMetaKey = useMemo(() => `template-draft-meta:${template.id}`, [template.id]);
   const paidStorageKey = useMemo(() => `template-paid-download:${template.id}`, [template.id]);
   const [values, setValues] = useState<Record<string, string>>(initial);
   const [draftMessage, setDraftMessage] = useState<string>("");
@@ -134,9 +135,14 @@ export function TemplateDetailForm({ template }: Props) {
       try {
         const raw = window.localStorage.getItem(draftStorageKey);
         if (!raw) return;
-        const parsed = JSON.parse(raw) as Record<string, string> | null;
+        const parsed = JSON.parse(raw) as Record<string, unknown> | null;
         if (!parsed || typeof parsed !== "object") return;
-        setValues((prev) => ({ ...prev, ...parsed }));
+        const next: Record<string, string> = {};
+        Object.entries(parsed).forEach(([k, v]) => {
+          if (k.startsWith("_")) return;
+          if (typeof v === "string") next[k] = v;
+        });
+        setValues((prev) => ({ ...prev, ...next }));
         setDraftMessage("Loaded saved draft");
       } catch {
         // Ignore invalid draft payloads.
@@ -156,17 +162,19 @@ export function TemplateDetailForm({ template }: Props) {
     const id = window.setTimeout(() => {
       try {
         window.localStorage.setItem(draftStorageKey, JSON.stringify(values));
+        window.localStorage.setItem(draftMetaKey, JSON.stringify({ savedAt: new Date().toISOString() }));
       } catch {
         // Ignore auto-save failures; manual Save Draft still shows status.
       }
     }, 700);
     return () => window.clearTimeout(id);
-  }, [draftStorageKey, values]);
+  }, [draftStorageKey, draftMetaKey, values]);
 
   const onSaveDraft = () => {
     if (typeof window === "undefined") return;
     try {
       window.localStorage.setItem(draftStorageKey, JSON.stringify(values));
+      window.localStorage.setItem(draftMetaKey, JSON.stringify({ savedAt: new Date().toISOString() }));
       setDraftMessage("Draft saved");
     } catch {
       setDraftMessage("Could not save draft");
@@ -179,6 +187,7 @@ export function TemplateDetailForm({ template }: Props) {
     try {
       // Hard reset: remove persisted draft so next refresh always uses template defaults.
       window.localStorage.removeItem(draftStorageKey);
+      window.localStorage.removeItem(draftMetaKey);
       setDraftMessage("Reset to default");
     } catch {
       setDraftMessage("Reset done (draft not saved)");

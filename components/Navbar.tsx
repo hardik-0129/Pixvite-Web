@@ -371,6 +371,13 @@ export function Navbar() {
               {isAuthenticated ? (
                 <>
                   <Link
+                    href="/drafts"
+                    className="py-2 text-center text-sm font-medium text-[var(--text-secondary)] transition hover:text-[var(--foreground)]"
+                    onClick={closeMobile}
+                  >
+                    My Drafts
+                  </Link>
+                  <Link
                     href="/profile"
                     className="rounded-full py-3.5 text-center text-sm font-semibold text-white shadow-sm transition hover:opacity-95"
                     style={{ background: "linear-gradient(90deg, var(--brand-start), var(--brand-end))", ...touch }}
@@ -567,6 +574,13 @@ export function Navbar() {
               <div className="hidden items-center gap-4 sm:flex">
                 {isAuthenticated ? (
                   <>
+                    <Link
+                      href="/drafts"
+                      className="touch-manipulation cursor-pointer px-3 py-2 text-sm font-medium text-[var(--foreground)] underline-offset-4 transition hover:text-rose-600 hover:underline"
+                      style={touch}
+                    >
+                      My Drafts
+                    </Link>
                     <Link
                       href="/profile"
                       className="rounded-full px-6 py-2 font-medium text-white"

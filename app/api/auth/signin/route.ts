@@ -1,26 +1,22 @@
 import { NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
+import bcrypt from "bcryptjs";
 import { AuthRole, getUserByEmail } from "@/lib/auth-store";
-import { verifyOtp } from "@/lib/otp-store";
 
 type SigninPayload = {
   email?: string;
   role?: AuthRole;
-  otp?: string;
+  password?: string;
 };
 
 export async function POST(request: Request) {
   const body = (await request.json()) as SigninPayload;
   const email = body.email?.trim().toLowerCase() ?? "";
-  const otp = body.otp?.trim() ?? "";
+  const password = body.password ?? "";
   const requestedRole: AuthRole = body.role === "admin" ? "admin" : "user";
 
-  if (!email || !otp) {
-    return NextResponse.json({ message: "Email and OTP are required." }, { status: 400 });
-  }
-
-  if (!(await verifyOtp(email, otp))) {
-    return NextResponse.json({ message: "Invalid OTP." }, { status: 401 });
+  if (!email || !password) {
+    return NextResponse.json({ message: "Email and password are required." }, { status: 400 });
   }
 
   const user = await getUserByEmail(email);
@@ -30,6 +26,15 @@ export async function POST(request: Request) {
 
   if (user.role !== requestedRole) {
     return NextResponse.json({ message: "Role does not match this account." }, { status: 403 });
+  }
+
+  if (!user.passwordHash) {
+    return NextResponse.json({ message: "Password is not set for this account." }, { status: 401 });
+  }
+
+  const passwordMatches = await bcrypt.compare(password, user.passwordHash);
+  if (!passwordMatches) {
+    return NextResponse.json({ message: "Invalid email or password." }, { status: 401 });
   }
 
   const jwtSecret = process.env.JWT_SECRET;

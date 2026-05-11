@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
 import { getUserByEmail, updateUserProfileByEmail } from "@/lib/auth-store";
+import { getTemplateOrdersByEmail } from "@/lib/template-orders";
 
 type SessionPayload = jwt.JwtPayload & {
   email?: string;
@@ -43,14 +44,29 @@ export async function GET(request: Request) {
     return NextResponse.json({ message: "User not found" }, { status: 404 });
   }
 
+  const phoneRaw = user.phone?.trim() ?? "";
+  const phone =
+    phoneRaw && phoneRaw !== "-" ? phoneRaw : "";
+
+  const ordersRaw = await getTemplateOrdersByEmail(session.email);
+  const orders = ordersRaw.map(o => ({
+    razorpayOrderId: o.razorpayOrderId,
+    templateId: o.templateId,
+    templateTitle: o.templateTitle,
+    totalInr: o.totalInr,
+    paidAt: o.paidAt,
+  }));
+
   return NextResponse.json({
     ok: true,
     user: {
       firstName: user.firstName,
       lastName: user.lastName,
       email: user.email,
+      phone,
       memberSince: user.createdAt,
     },
+    orders,
   });
 }
 
@@ -111,6 +127,9 @@ export async function PUT(request: Request) {
       }
     );
 
+    const phoneOut =
+      updated.phone?.trim() && updated.phone.trim() !== "-" ? updated.phone.trim() : "";
+
     const response = NextResponse.json({
       ok: true,
       message: "Profile updated successfully.",
@@ -118,6 +137,7 @@ export async function PUT(request: Request) {
         firstName: updated.firstName,
         lastName: updated.lastName,
         email: updated.email,
+        phone: phoneOut,
         memberSince: updated.createdAt,
       },
     });
