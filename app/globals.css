@@ -196,7 +196,7 @@ textarea {
   letter-spacing: inherit;
   color: inherit;
   opacity: 1;
-  background-color: #0000;
+  /* background-color: #0000; */
 }
 
 /* Popular tags: linear wrapper transitions so Swiper autoplay feels smooth, not ease-in-out */
