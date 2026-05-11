@@ -55,6 +55,7 @@ export async function GET(request: Request) {
     templateTitle: o.templateTitle,
     totalInr: o.totalInr,
     paidAt: o.paidAt,
+    renderStatus: o.renderStatus ?? null,
   }));
 
   return NextResponse.json({

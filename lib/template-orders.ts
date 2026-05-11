@@ -1,6 +1,7 @@
 import { getDb } from "@/lib/mongodb";
 
 export type TemplateOrderStatus = "pending_payment" | "paid";
+export type RenderStatus = "pending" | "processing" | "done" | "error";
 
 export type TemplateOrderDoc = {
   razorpayOrderId: string;
@@ -20,6 +21,10 @@ export type TemplateOrderDoc = {
   receipt: string;
   createdAt: string;
   paidAt?: string;
+  fieldValuesAtPayment?: Record<string, string>;
+  renderStatus?: RenderStatus;
+  renderJobId?: string;
+  renderError?: string;
 };
 
 const COLLECTION = "template_orders";
@@ -83,4 +88,44 @@ export async function getTemplateOrdersByEmail(email: string): Promise<TemplateO
     .find({ email, status: "paid" })
     .sort({ createdAt: -1 })
     .toArray();
+}
+
+export async function getOrderById(razorpayOrderId: string): Promise<TemplateOrderDoc | null> {
+  const db = await getDb();
+  return db.collection<TemplateOrderDoc>(COLLECTION).findOne({ razorpayOrderId }) as Promise<TemplateOrderDoc | null>;
+}
+
+export async function getOrderByTemplateAndEmail(
+  templateId: string,
+  email: string
+): Promise<TemplateOrderDoc | null> {
+  const db = await getDb();
+  return db
+    .collection<TemplateOrderDoc>(COLLECTION)
+    .findOne({ templateId, email, status: "paid" }, { sort: { createdAt: -1 } }) as Promise<TemplateOrderDoc | null>;
+}
+
+export async function updateOrderRenderJob(
+  razorpayOrderId: string,
+  renderJobId: string,
+  renderStatus: RenderStatus
+): Promise<void> {
+  const db = await getDb();
+  await db
+    .collection<TemplateOrderDoc>(COLLECTION)
+    .updateOne({ razorpayOrderId }, { $set: { renderJobId, renderStatus } });
+}
+
+export async function markOrderRenderDone(razorpayOrderId: string): Promise<void> {
+  const db = await getDb();
+  await db
+    .collection<TemplateOrderDoc>(COLLECTION)
+    .updateOne({ razorpayOrderId }, { $set: { renderStatus: "done" as RenderStatus } });
+}
+
+export async function markOrderRenderError(razorpayOrderId: string, renderError: string): Promise<void> {
+  const db = await getDb();
+  await db
+    .collection<TemplateOrderDoc>(COLLECTION)
+    .updateOne({ razorpayOrderId }, { $set: { renderStatus: "error" as RenderStatus, renderError } });
 }

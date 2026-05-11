@@ -32,6 +32,7 @@ type ProfileOrder = {
   templateTitle: string;
   totalInr: number;
   paidAt?: string;
+  renderStatus?: string | null;
 };
 
 const navActiveClass =
@@ -499,16 +500,35 @@ export function ProfileDetailsClient() {
                             </p>
                           )}
                         </div>
-                        <div className="flex items-center justify-between sm:flex-col sm:items-end sm:gap-2">
+                        <div className="flex items-center justify-between gap-3 sm:flex-col sm:items-end sm:gap-2">
                           <p className="text-lg font-bold text-emerald-600">
                             ₹{order.totalInr}
                           </p>
-                          <Link
-                            href={`/templates/${order.templateId}`}
-                            className="rounded-xl border border-rose-200 px-4 py-2 text-sm font-semibold text-rose-600 transition hover:bg-rose-50"
-                          >
-                            Use Template
-                          </Link>
+                          <div className="flex flex-wrap items-center gap-2">
+                            {order.renderStatus === "done" ? (
+                              <a
+                                href={`/api/orders/${encodeURIComponent(order.razorpayOrderId)}/video`}
+                                download
+                                className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700"
+                              >
+                                Download Video
+                              </a>
+                            ) : order.renderStatus === "error" ? (
+                              <span className="rounded-xl border border-red-200 px-4 py-2 text-sm font-semibold text-red-600">
+                                Render Failed
+                              </span>
+                            ) : order.renderStatus === "processing" || order.renderStatus === "pending" ? (
+                              <span className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-700">
+                                Preparing…
+                              </span>
+                            ) : null}
+                            <Link
+                              href={`/templates/${order.templateId}`}
+                              className="rounded-xl border border-rose-200 px-4 py-2 text-sm font-semibold text-rose-600 transition hover:bg-rose-50"
+                            >
+                              Use Template
+                            </Link>
+                          </div>
                         </div>
                       </div>
                     ))}

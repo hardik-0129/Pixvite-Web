@@ -28,6 +28,7 @@ type Props = {
   open: boolean;
   onClose: () => void;
   template: Template;
+  fieldValues?: Record<string, string>;
   /** Called after the server verifies the Razorpay signature (payment succeeded). */
   onPaymentSuccess?: (payload: { paymentId: string; orderId: string }) => void;
 };
@@ -44,7 +45,7 @@ type AppliedPricing = {
   totalInr: number;
 };
 
-export function TemplateCheckoutModal({ open, onClose, template, onPaymentSuccess }: Props) {
+export function TemplateCheckoutModal({ open, onClose, template, fieldValues, onPaymentSuccess }: Props) {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
@@ -264,6 +265,7 @@ export function TemplateCheckoutModal({ open, onClose, template, onPaymentSucces
                 razorpay_order_id: response.razorpay_order_id,
                 razorpay_payment_id: response.razorpay_payment_id,
                 razorpay_signature: response.razorpay_signature,
+                fieldValuesAtPayment: fieldValues ?? {},
               }),
             });
             if (!mountedRef.current) {
@@ -355,8 +357,7 @@ export function TemplateCheckoutModal({ open, onClose, template, onPaymentSucces
               ) : null}
               {paymentSuccess ? (
                 <p className="text-sm text-[var(--text-secondary)]">
-                  Thank you. Your payment was verified. Use the download buttons on the editor page for your edited JSON
-                  and video file, or close this window to continue.
+                  Thank you. Your payment was verified. Your video is being prepared — close this window to track progress and download when ready.
                 </p>
               ) : null}
               <form autoComplete="off" onSubmit={(e) => e.preventDefault()} className={paymentSuccess ? "pointer-events-none opacity-50" : ""}>

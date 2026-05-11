@@ -4,6 +4,7 @@ import {
   normalizeCouponCode,
 } from "@/lib/coupon-checkout";
 import { verifyRazorpayPaymentSignature } from "@/lib/razorpay-verify";
+import { getDb } from "@/lib/mongodb";
 import { getTemplateOrderCouponRaw, markTemplateOrderPaidIfPending } from "@/lib/template-orders";
 
 export const runtime = "nodejs";
@@ -25,10 +26,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid body" }, { status: 400 });
   }
 
-  const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = body as Record<
-    string,
-    unknown
-  >;
+  const { razorpay_order_id, razorpay_payment_id, razorpay_signature, fieldValuesAtPayment } =
+    body as Record<string, unknown>;
 
   const orderId = typeof razorpay_order_id === "string" ? razorpay_order_id.trim() : "";
   const paymentId = typeof razorpay_payment_id === "string" ? razorpay_payment_id.trim() : "";
@@ -49,8 +48,27 @@ export async function POST(request: Request) {
   try {
     const couponRaw = await getTemplateOrderCouponRaw(orderId);
     const becamePaid = await markTemplateOrderPaidIfPending(orderId, paymentId);
-    if (becamePaid && couponRaw) {
-      await incrementCouponUsageAfterPayment(normalizeCouponCode(couponRaw));
+    if (becamePaid) {
+      if (couponRaw) {
+        await incrementCouponUsageAfterPayment(normalizeCouponCode(couponRaw));
+      }
+      // Save locked field values and mark render as pending
+      if (
+        fieldValuesAtPayment &&
+        typeof fieldValuesAtPayment === "object" &&
+        !Array.isArray(fieldValuesAtPayment)
+      ) {
+        const db = await getDb();
+        await db.collection("template_orders").updateOne(
+          { razorpayOrderId: orderId },
+          {
+            $set: {
+              fieldValuesAtPayment: fieldValuesAtPayment as Record<string, string>,
+              renderStatus: "pending",
+            },
+          }
+        );
+      }
     }
   } catch (e) {
     console.error("[payments/verify] Failed to update order:", e);

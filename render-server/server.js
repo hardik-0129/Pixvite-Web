@@ -293,6 +293,12 @@ function checkSecret(req) {
 const jobs = new Map();
 const activeBrowsers = new Map();
 
+// Persistent order-render storage (not deleted after serving)
+const ORDER_RENDERS_DIR = (process.env.ORDER_RENDERS_DIR || "").trim() || require("path").join(__dirname, "order-renders");
+fs.mkdirSync(ORDER_RENDERS_DIR, { recursive: true });
+// Maps razorpayOrderId → jobId while the order render is in progress
+const orderJobs = new Map();
+
 function activeRenderCount() {
   let n = 0;
   for (const j of jobs.values()) {
@@ -600,6 +606,176 @@ app.post("/render", upload.single("zip"), async (req, res) => {
     });
   });
 });
+
+// ── Persistent order-render endpoints ────────────────────────────────────────
+
+app.post("/render/order", upload.single("zip"), async (req, res) => {
+  const rid = randomUUID().slice(0, 8);
+  if (!checkSecret(req)) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+
+  const orderId = typeof req.body?.orderId === "string" ? req.body.orderId.trim() : "";
+  if (!orderId) {
+    res.status(400).json({ error: "orderId is required" });
+    return;
+  }
+
+  // Idempotent: persistent file already exists
+  const persistentMp4 = path.join(ORDER_RENDERS_DIR, orderId, "export.mp4");
+  if (fs.existsSync(persistentMp4)) {
+    res.json({ alreadyDone: true, orderId });
+    return;
+  }
+
+  // Idempotent: already in progress
+  if (orderJobs.has(orderId)) {
+    res.status(202).json({ jobId: orderJobs.get(orderId), orderId });
+    return;
+  }
+
+  const renderEngine = normalizeRenderEngine(req.body?.renderEngine || DEFAULT_RENDER_ENGINE);
+  const rawAnim = req.body?.animationData;
+  let lottieJson = null;
+  if (!rawAnim || typeof rawAnim !== "string") {
+    res.status(400).json({ error: "Missing animationData" });
+    return;
+  }
+  try {
+    lottieJson = JSON.parse(rawAnim);
+  } catch {
+    res.status(400).json({ error: "animationData is not valid JSON" });
+    return;
+  }
+
+  // Respect concurrency limit
+  await closeOrphanBrowsers();
+  const active = activeRenderCount();
+  if (active >= MAX_CONCURRENT_RENDERS) {
+    res.setHeader("Retry-After", "10");
+    res.status(429).json({ error: "Render server is busy. Please wait and retry.", activeRenders: active });
+    return;
+  }
+
+  const w = Number(lottieJson.w) || 1080;
+  const h = Number(lottieJson.h) || 1920;
+  const fr = Number(lottieJson.fr) || 30;
+  const ip = Number.isFinite(Number(lottieJson.ip)) ? Number(lottieJson.ip) : 0;
+  const op = Number.isFinite(Number(lottieJson.op)) ? Number(lottieJson.op) : ip + fr * 10 - 1;
+  const totalFrames = Math.max(1, Math.floor(op - ip + 1));
+  const maxFrames = Math.min(totalFrames, Math.floor(MAX_EXPORT_SECONDS * fr));
+  const plateVideoUrl = typeof req.body.plateVideoUrl === "string" ? req.body.plateVideoUrl.trim() : "";
+  const audioUrl = typeof req.body.audioUrl === "string" ? req.body.audioUrl.trim() : "";
+  let previewFontUrls = [];
+  if (typeof req.body.previewFontUrls === "string" && req.body.previewFontUrls.trim()) {
+    try { previewFontUrls = JSON.parse(req.body.previewFontUrls); } catch { previewFontUrls = []; }
+  }
+
+  const jobId = randomUUID();
+  createJob(jobId, rid);
+  jobPatch(jobId, { engine: renderEngine });
+  orderJobs.set(orderId, jobId);
+
+  const zipBuffer = req.file?.buffer ? Buffer.from(req.file.buffer) : null;
+  const payload = {
+    lottieJson, w, h, fr, ip, op, totalFrames, maxFrames,
+    plateVideoUrl, audioUrl, previewFontUrls,
+    zipBuffer, hasZip: Boolean(zipBuffer?.length),
+    rawAnimLength: rawAnim.length, renderEngine,
+  };
+
+  const ctx = {
+    jobId, rid, jobPatch, log, shortUrl, startStaticServer,
+    rewriteLottieJsonForSameOriginProxy, toProxyAssetUrl,
+    downloadToFile, findFileByExt, plateLocalFilename,
+    registerBrowser, unregisterBrowser, runFfmpeg,
+    FRAME_LOG_STEP, payload,
+  };
+
+  res.status(202).json({ jobId, orderId });
+
+  setImmediate(() => {
+    const runner = renderEngine === "remotion" ? runRemotionPipeline : runRenderPipeline;
+    runner(ctx).then(async () => {
+      // After pipeline completes, copy temp output to persistent location
+      const job = jobs.get(jobId);
+      const tempOutput = job?.outputPath;
+      const tempJobDir = job?.jobDir;
+      if (tempOutput && fs.existsSync(tempOutput)) {
+        try {
+          fs.mkdirSync(path.dirname(persistentMp4), { recursive: true });
+          await fsp.copyFile(tempOutput, persistentMp4);
+          log(rid, "order render saved", { orderId, persistentMp4 });
+        } catch (e) {
+          log(rid, "order render save failed", e?.message || e);
+          jobPatch(jobId, { done: true, error: "Failed to save video", phase: "error" });
+        }
+      }
+      // Clean up temp scratch dir from the pipeline
+      if (tempJobDir) fsp.rm(tempJobDir, { recursive: true, force: true }).catch(() => {});
+      orderJobs.delete(orderId);
+    }).catch((e) => {
+      const job = jobs.get(jobId);
+      const tempJobDir = job?.jobDir;
+      if (tempJobDir) fsp.rm(tempJobDir, { recursive: true, force: true }).catch(() => {});
+      orderJobs.delete(orderId);
+      jobPatch(jobId, { done: true, error: e instanceof Error ? e.message : String(e), phase: "error", progress: 0 });
+      log(rid, "order render error", e?.message || e);
+    });
+  });
+});
+
+app.get("/render/orders/:orderId/status", (req, res) => {
+  if (!checkSecret(req)) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+  const { orderId } = req.params;
+  const outputMp4 = path.join(ORDER_RENDERS_DIR, orderId, "export.mp4");
+
+  if (fs.existsSync(outputMp4)) {
+    res.json({ done: true, progress: 1, phase: "done" });
+    return;
+  }
+
+  const jobId = orderJobs.get(orderId);
+  if (jobId) {
+    const job = jobs.get(jobId);
+    if (job) {
+      res.json({ done: job.done, progress: job.progress, phase: job.phase, error: job.error });
+      return;
+    }
+  }
+
+  res.json({ done: false, progress: 0, found: false });
+});
+
+app.get("/render/orders/:orderId/file", async (req, res) => {
+  if (!checkSecret(req)) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+  const { orderId } = req.params;
+  const outputMp4 = path.join(ORDER_RENDERS_DIR, orderId, "export.mp4");
+
+  if (!fs.existsSync(outputMp4)) {
+    res.status(404).json({ error: "Video not found" });
+    return;
+  }
+
+  res.setHeader("Content-Type", "video/mp4");
+  res.setHeader("Content-Disposition", 'attachment; filename="export.mp4"');
+  // Stream without cleanup — file is persistent
+  const stream = fs.createReadStream(outputMp4);
+  stream.on("error", (e) => {
+    log("", "order file stream error", e?.message || e);
+    if (!res.headersSent) res.status(500).end();
+  });
+  stream.pipe(res);
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 app.listen(DEFAULT_PORT, () => {
   log("", "listening", { url: `http://127.0.0.1:${DEFAULT_PORT}`, frameLogStep: FRAME_LOG_STEP });

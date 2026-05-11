@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { withBackendPrefix } from "@/lib/backend-url";
 
@@ -10,9 +11,6 @@ type DraftRow = {
   title: string;
   thumbnail: string;
 };
-
-const DRAFT_PREFIX = "template-draft:";
-const META_PREFIX = "template-draft-meta:";
 
 function formatDraftDate(iso: string) {
   const d = new Date(iso);
@@ -50,91 +48,64 @@ function resolveThumb(url: string) {
   return withBackendPrefix(url);
 }
 
+async function fetchTemplateInfo(templateId: string): Promise<{ title: string; thumbnail: string }> {
+  try {
+    const res = await fetch(`/api/templates/${encodeURIComponent(templateId)}`, { cache: "no-store" });
+    if (res.ok) {
+      const data = (await res.json()) as { title: string; thumbnail: string };
+      return { title: data.title, thumbnail: resolveThumb(data.thumbnail || "") };
+    }
+  } catch {
+    // ignore
+  }
+  return { title: `Template (${templateId})`, thumbnail: "" };
+}
+
 export function MyDraftsClient() {
+  const router = useRouter();
   const [rows, setRows] = useState<DraftRow[]>([]);
   const [busy, setBusy] = useState(true);
 
   const load = useCallback(async () => {
-    if (typeof window === "undefined") return;
     setBusy(true);
-
-    const ids: { templateId: string; savedAt: string }[] = [];
-    for (let i = 0; i < window.localStorage.length; i += 1) {
-      const k = window.localStorage.key(i);
-      if (!k || !k.startsWith(DRAFT_PREFIX)) continue;
-      const templateId = k.slice(DRAFT_PREFIX.length);
-      if (!templateId) continue;
-      const draftRaw = window.localStorage.getItem(k);
-      if (!draftRaw) continue;
-
-      const metaKey = `${META_PREFIX}${templateId}`;
-      let savedAt = new Date().toISOString();
-      try {
-        const metaRaw = window.localStorage.getItem(metaKey);
-        if (metaRaw) {
-          const meta = JSON.parse(metaRaw) as { savedAt?: string };
-          if (meta.savedAt && !Number.isNaN(Date.parse(meta.savedAt))) {
-            savedAt = meta.savedAt;
-          }
-        } else {
-          window.localStorage.setItem(metaKey, JSON.stringify({ savedAt }));
-        }
-      } catch {
-        /* ignore */
+    try {
+      const res = await fetch("/api/drafts");
+      if (res.status === 401) {
+        router.replace("/login");
+        return;
       }
-
-      ids.push({ templateId, savedAt });
-    }
-
-    ids.sort((a, b) => Date.parse(b.savedAt) - Date.parse(a.savedAt));
-
-    const nextRows: DraftRow[] = [];
-    for (const { templateId, savedAt } of ids) {
-      try {
-        const res = await fetch(`/api/templates/${encodeURIComponent(templateId)}`, { cache: "no-store" });
-        if (res.ok) {
-          const data = (await res.json()) as { id: string; title: string; thumbnail: string };
-          nextRows.push({
-            templateId: data.id,
-            savedAt,
-            title: data.title,
-            thumbnail: resolveThumb(data.thumbnail || ""),
-          });
-        } else {
-          nextRows.push({
-            templateId,
-            savedAt,
-            title: `Template (${templateId})`,
-            thumbnail: "",
-          });
-        }
-      } catch {
-        nextRows.push({
-          templateId,
-          savedAt,
-          title: `Template (${templateId})`,
-          thumbnail: "",
-        });
+      const data = (await res.json()) as { drafts: { templateId: string; savedAt: string }[] };
+      const nextRows: DraftRow[] = [];
+      for (const { templateId, savedAt } of data.drafts) {
+        const info = await fetchTemplateInfo(templateId);
+        nextRows.push({ templateId, savedAt, ...info });
       }
+      setRows(nextRows);
+    } catch {
+      router.replace("/login");
     }
-
-    setRows(nextRows);
     setBusy(false);
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
   function removeDraft(templateId: string) {
-    if (typeof window === "undefined") return;
-    try {
-      window.localStorage.removeItem(`${DRAFT_PREFIX}${templateId}`);
-      window.localStorage.removeItem(`${META_PREFIX}${templateId}`);
-      setRows((prev) => prev.filter((r) => r.templateId !== templateId));
-    } catch {
-      /* ignore */
-    }
+    fetch(`/api/drafts/${encodeURIComponent(templateId)}`, { method: "DELETE" })
+      .then(() => setRows((prev) => prev.filter((r) => r.templateId !== templateId)))
+      .catch(() => {});
+  }
+
+  if (busy) {
+    return (
+      <div className="min-h-screen bg-[#f5f5f7] font-body">
+        <div className="mx-auto max-w-6xl px-4 py-10">
+          <h1 className="mb-6 text-[32px] font-bold text-[#111827] md:text-[56px]">My Drafts</h1>
+          <p className="text-sm text-gray-500">Loading drafts…</p>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -142,9 +113,7 @@ export function MyDraftsClient() {
       <div className="mx-auto max-w-6xl px-4 py-10">
         <h1 className="mb-6 text-[32px] font-bold text-[#111827] md:text-[56px]">My Drafts</h1>
 
-        {busy ? (
-          <p className="text-sm text-gray-500">Loading drafts…</p>
-        ) : rows.length === 0 ? (
+        {rows.length === 0 ? (
           <div className="rounded-2xl border border-gray-100 bg-white p-10 text-center shadow-md">
             <p className="text-gray-600">You don&apos;t have any saved drafts yet.</p>
             <Link href="/templates" className="mt-4 inline-block font-semibold text-rose-700 hover:underline">
@@ -201,10 +170,10 @@ export function MyDraftsClient() {
               ))}
             </div>
 
-            <div className="space-y-4 md:hidden" aria-busy={busy}>
+            <div className="space-y-4 md:hidden">
               {rows.map((row) => (
                 <div key={row.templateId} className="rounded-2xl border border-gray-100 bg-white p-4 shadow-md">
-                  <div className="mb-3 min-h-[160px] shrink-0 overflow-hidden rounded-xl bg-gray-100">
+                  <div className="mb-3 min-h-40 shrink-0 overflow-hidden rounded-xl bg-gray-100">
                     {row.thumbnail ? (
                       <img
                         src={row.thumbnail}
@@ -224,14 +193,14 @@ export function MyDraftsClient() {
                     {row.templateId} | {row.title}
                   </p>
                   <p className="mt-1 text-xs text-gray-500">Saved on {formatDraftDate(row.savedAt)}</p>
-                  <div className="mt-3 flex min-h-[44px] items-center justify-between">
+                  <div className="mt-3 flex min-h-11 items-center justify-between">
                     <Link href={`/templates/${row.templateId}`} className="text-sm font-semibold text-rose-700 hover:underline">
                       Continue Editing →
                     </Link>
                     <button
                       type="button"
                       aria-label="Delete draft"
-                      className="flex min-h-[44px] min-w-[44px] items-center justify-center text-red-500 hover:text-red-600"
+                      className="flex min-h-11 min-w-11 items-center justify-center text-red-500 hover:text-red-600"
                       onClick={() => removeDraft(row.templateId)}
                     >
                       <TrashIcon />
@@ -243,7 +212,7 @@ export function MyDraftsClient() {
           </>
         )}
 
-        <div className="mt-6 max-w-sm min-h-[140px]">
+        <div className="mt-6 max-w-sm min-h-35">
           <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
             <p className="mb-1 text-sm font-semibold text-[#111827]">Draft Actions</p>
             <p className="text-base leading-relaxed text-gray-500">

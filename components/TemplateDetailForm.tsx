@@ -1,14 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Template } from "@/lib/templates";
 import { isFormFieldEnabled } from "@/lib/templates";
-import { buildEditedLottieForDownload } from "@/lib/lottie-apply-fields";
-import { absolutizeLottieUrlsForServer, absolutizeUrlIfRelative } from "@/lib/lottie-absolutize-assets";
-import { resolveTemplatePlateVideoUrl } from "@/lib/template-plate-url";
-import { renderEditedTemplateVideo } from "@/lib/render-template-video-client";
-import { renderTemplateVideoOnServer } from "@/lib/render-template-video-server-client";
 import { EditorProgressStepper } from "./EditorProgressStepper";
 import { InstagramSupportLink } from "./InstagramSupportLink";
 import { TemplateCheckoutModal } from "./TemplateCheckoutModal";
@@ -81,18 +77,8 @@ function AlertTriangle({ className }: { className?: string }) {
   );
 }
 
-function downloadBlob(blob: Blob, filename: string) {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-}
-
 export function TemplateDetailForm({ template }: Props) {
+  const router = useRouter();
   const visibleFormFields = useMemo(
     () => template.formFields.filter((f) => isFormFieldEnabled(f)),
     [template.formFields]
@@ -105,51 +91,139 @@ export function TemplateDetailForm({ template }: Props) {
     });
     return next;
   }, [template.formFields]);
-  const draftStorageKey = useMemo(() => `template-draft:${template.id}`, [template.id]);
-  const draftMetaKey = useMemo(() => `template-draft-meta:${template.id}`, [template.id]);
-  const paidStorageKey = useMemo(() => `template-paid-download:${template.id}`, [template.id]);
+
   const [values, setValues] = useState<Record<string, string>>(initial);
   const [draftMessage, setDraftMessage] = useState<string>("");
   const [checkoutOpen, setCheckoutOpen] = useState(false);
-  const [paidUnlocked, setPaidUnlocked] = useState(false);
-  const [exportJsonBusy, setExportJsonBusy] = useState(false);
-  const [exportVideoBusy, setExportVideoBusy] = useState(false);
-  const [exportProgress, setExportProgress] = useState<number | null>(null);
-  const [exportMessage, setExportMessage] = useState("");
+  // null = auth check in flight; true = authenticated; false = not logged in
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const raf = requestAnimationFrame(() => {
-      try {
-        if (sessionStorage.getItem(paidStorageKey) === "1") setPaidUnlocked(true);
-      } catch {
-        /* ignore */
-      }
-    });
-    return () => cancelAnimationFrame(raf);
-  }, [paidStorageKey]);
+  // Render tracking state
+  const [renderOrderId, setRenderOrderId] = useState<string | null>(null);
+  const [renderDone, setRenderDone] = useState(false);
+  const [renderProgress, setRenderProgress] = useState<number | null>(null);
+  const [renderPhase, setRenderPhase] = useState<string | null>(null);
+  const [renderError, setRenderError] = useState<string>("");
 
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // On mount: load draft + check for existing paid order
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    const raf = requestAnimationFrame(() => {
+    let cancelled = false;
+
+    async function loadDraft() {
       try {
-        const raw = window.localStorage.getItem(draftStorageKey);
-        if (!raw) return;
-        const parsed = JSON.parse(raw) as Record<string, unknown> | null;
-        if (!parsed || typeof parsed !== "object") return;
+        const res = await fetch(`/api/drafts/${encodeURIComponent(template.id)}`);
+        if (res.status === 401) {
+          if (!cancelled) setIsAuthenticated(false);
+          return;
+        }
+        if (!cancelled) setIsAuthenticated(true);
+        if (res.status === 404) return;
+        if (!res.ok) return;
+        const data = (await res.json()) as { values?: Record<string, string> };
+        if (!data.values || cancelled) return;
         const next: Record<string, string> = {};
-        Object.entries(parsed).forEach(([k, v]) => {
-          if (k.startsWith("_")) return;
+        Object.entries(data.values).forEach(([k, v]) => {
           if (typeof v === "string") next[k] = v;
         });
-        setValues((prev) => ({ ...prev, ...next }));
-        setDraftMessage("Loaded saved draft");
+        if (!cancelled) {
+          setValues((prev) => ({ ...prev, ...next }));
+          setDraftMessage("Loaded saved draft");
+        }
       } catch {
-        // Ignore invalid draft payloads.
+        if (!cancelled) setIsAuthenticated(false);
       }
-    });
-    return () => cancelAnimationFrame(raf);
-  }, [draftStorageKey]);
+    }
+
+    async function checkExistingOrder() {
+      try {
+        const res = await fetch(`/api/orders/check?templateId=${encodeURIComponent(template.id)}`);
+        if (!res.ok || cancelled) return;
+        const data = (await res.json()) as {
+          order: { razorpayOrderId: string; renderStatus: string | null; renderError: string | null } | null;
+        };
+        if (cancelled || !data.order) return;
+        const { razorpayOrderId, renderStatus, renderError: orderError } = data.order;
+        if (cancelled) return;
+        setRenderOrderId(razorpayOrderId);
+        if (renderStatus === "done") {
+          setRenderDone(true);
+          setRenderProgress(1);
+        } else if (renderStatus === "error") {
+          setRenderError(orderError ?? "Render failed.");
+        } else if (renderStatus === "pending" || renderStatus === "processing") {
+          // Render server may have lost the job (restart) — re-submit idempotently
+          fetch(`/api/orders/${encodeURIComponent(razorpayOrderId)}/start-render`, { method: "POST" })
+            .then(async (sr) => {
+              if (!sr.ok || cancelled) return;
+              const sd = (await sr.json()) as { alreadyDone?: boolean };
+              if (!cancelled && sd.alreadyDone) {
+                setRenderDone(true);
+                setRenderProgress(1);
+              }
+            })
+            .catch(() => {});
+        }
+      } catch {
+        // ignore — user simply hasn't paid
+      }
+    }
+
+    void loadDraft();
+    void checkExistingOrder();
+    return () => {
+      cancelled = true;
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [template.id]);
+
+  // Poll render status while in-progress
+  useEffect(() => {
+    if (!renderOrderId || renderDone || renderError) {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+      }
+      return;
+    }
+
+    async function poll() {
+      if (!renderOrderId) return;
+      try {
+        const res = await fetch(`/api/orders/${encodeURIComponent(renderOrderId)}/render-status`);
+        if (!res.ok) return;
+        const data = (await res.json()) as {
+          status: string;
+          progress?: number;
+          phase?: string;
+          error?: string;
+        };
+        if (data.status === "done") {
+          setRenderDone(true);
+          setRenderProgress(1);
+          setRenderPhase(null);
+        } else if (data.status === "error") {
+          setRenderError(data.error ?? "Render failed.");
+          setRenderPhase(null);
+        } else {
+          setRenderProgress(data.progress ?? null);
+          setRenderPhase(data.phase ?? null);
+        }
+      } catch {
+        // ignore transient errors
+      }
+    }
+
+    void poll();
+    pollingRef.current = setInterval(() => void poll(), 2000);
+    return () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+      }
+    };
+  }, [renderOrderId, renderDone, renderError]);
 
   useEffect(() => {
     if (!draftMessage) return;
@@ -157,175 +231,75 @@ export function TemplateDetailForm({ template }: Props) {
     return () => window.clearTimeout(id);
   }, [draftMessage]);
 
+  // Auto-save draft
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (!isAuthenticated) return;
     const id = window.setTimeout(() => {
-      try {
-        window.localStorage.setItem(draftStorageKey, JSON.stringify(values));
-        window.localStorage.setItem(draftMetaKey, JSON.stringify({ savedAt: new Date().toISOString() }));
-      } catch {
-        // Ignore auto-save failures; manual Save Draft still shows status.
-      }
+      fetch("/api/drafts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ templateId: template.id, values }),
+      }).catch(() => {});
     }, 700);
     return () => window.clearTimeout(id);
-  }, [draftStorageKey, draftMetaKey, values]);
+  }, [isAuthenticated, values, template.id]);
 
   const onSaveDraft = () => {
-    if (typeof window === "undefined") return;
-    try {
-      window.localStorage.setItem(draftStorageKey, JSON.stringify(values));
-      window.localStorage.setItem(draftMetaKey, JSON.stringify({ savedAt: new Date().toISOString() }));
-      setDraftMessage("Draft saved");
-    } catch {
-      setDraftMessage("Could not save draft");
+    if (!isAuthenticated) {
+      router.push("/login");
+      return;
     }
+    fetch("/api/drafts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ templateId: template.id, values }),
+    })
+      .then((res) => setDraftMessage(res.ok ? "Draft saved" : "Could not save draft"))
+      .catch(() => setDraftMessage("Could not save draft"));
   };
 
   const onResetDefaults = () => {
     setValues(initial);
-    if (typeof window === "undefined") return;
-    try {
-      // Hard reset: remove persisted draft so next refresh always uses template defaults.
-      window.localStorage.removeItem(draftStorageKey);
-      window.localStorage.removeItem(draftMetaKey);
-      setDraftMessage("Reset to default");
-    } catch {
-      setDraftMessage("Reset done (draft not saved)");
+    setDraftMessage("Reset to default");
+    if (isAuthenticated) {
+      fetch(`/api/drafts/${encodeURIComponent(template.id)}`, { method: "DELETE" }).catch(() => {});
     }
   };
+
+  const handlePaymentVerified = useCallback(
+    (payload: { paymentId: string; orderId: string }) => {
+      setCheckoutOpen(false);
+      setRenderOrderId(payload.orderId);
+      setRenderProgress(0);
+      setRenderError("");
+
+      fetch(`/api/orders/${encodeURIComponent(payload.orderId)}/start-render`, { method: "POST" })
+        .then(async (res) => {
+          if (!res.ok) {
+            const err = (await res.json().catch(() => ({}))) as { message?: string };
+            setRenderError(err.message ?? "Could not start render.");
+            return;
+          }
+          const data = (await res.json()) as { alreadyDone?: boolean };
+          if (data.alreadyDone) {
+            setRenderDone(true);
+            setRenderProgress(1);
+          }
+        })
+        .catch(() => setRenderError("Network error starting render."));
+    },
+    []
+  );
 
   const steps = [
     { label: "Choose Template", shortLabel: "Choose", state: "done" as const },
     { label: "Enter Details", shortLabel: "Details", state: "done" as const },
-    { label: "Download", shortLabel: "Download", state: paidUnlocked ? ("done" as const) : ("upcoming" as const) },
+    { label: "Download", shortLabel: "Download", state: renderDone ? ("done" as const) : ("upcoming" as const) },
   ];
 
-  const plateVideoUrl = useMemo(
-    () =>
-      resolveTemplatePlateVideoUrl({
-        backgroundVideoUrl: template.backgroundVideoUrl,
-        previewVideoUrl: template.previewVideoUrl,
-        lottiePreviewUrl: template.lottiePreviewUrl,
-      }).trim(),
-    [template.backgroundVideoUrl, template.previewVideoUrl, template.lottiePreviewUrl]
-  );
-
-  const lottieRenderServerUrl = useMemo(
-    () => (process.env.NEXT_PUBLIC_LOTTIE_RENDER_SERVER_URL || "").trim(),
-    []
-  );
-  const lottieRenderSecret = useMemo(
-    () => (process.env.NEXT_PUBLIC_LOTTIE_RENDER_SECRET || "").trim(),
-    []
-  );
-  const lottieRenderEngine = useMemo(
-    () =>
-      ((process.env.NEXT_PUBLIC_LOTTIE_RENDER_ENGINE || "remotion").trim().toLowerCase() === "browser"
-        ? "browser"
-        : "remotion"),
-    []
-  );
-
-  const handlePaymentVerified = useCallback(() => {
-    try {
-      sessionStorage.setItem(paidStorageKey, "1");
-    } catch {
-      /* ignore */
-    }
-    setPaidUnlocked(true);
-    setCheckoutOpen(false);
-  }, [paidStorageKey]);
-
-  const downloadEditedJson = useCallback(async () => {
-    setExportMessage("");
-    if (!template.lottiePreviewUrl?.trim()) {
-      setExportMessage("This template does not include a Lottie JSON URL to export.");
-      return;
-    }
-    setExportJsonBusy(true);
-    try {
-      const data = await buildEditedLottieForDownload(template.lottiePreviewUrl, template.formFields, values);
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json;charset=utf-8" });
-      downloadBlob(blob, `${template.id}-edited-lottie.json`);
-      setExportMessage("Lottie JSON download started.");
-    } catch (e) {
-      setExportMessage(e instanceof Error ? e.message : "Could not build JSON export.");
-    } finally {
-      setExportJsonBusy(false);
-    }
-  }, [template.id, template.lottiePreviewUrl, template.formFields, values]);
-
-  const downloadRenderedVideo = useCallback(async () => {
-    setExportMessage("");
-    setExportProgress(null);
-    if (!template.lottiePreviewUrl?.trim()) {
-      setExportMessage("A Lottie JSON file is required to render the video.");
-      return;
-    }
-    const useBrowserEngine = lottieRenderEngine === "browser";
-    if (!plateVideoUrl) {
-      setExportMessage("This template is missing a background video.");
-      return;
-    }
-    setExportVideoBusy(true);
-    try {
-      const edited = await buildEditedLottieForDownload(template.lottiePreviewUrl, template.formFields, values);
-
-      if (lottieRenderServerUrl) {
-        const origin =
-          typeof window !== "undefined" && window.location?.origin ? window.location.origin : "";
-        const payload = origin ? absolutizeLottieUrlsForServer(edited, origin) : edited;
-        const audio = template.previewAudioUrl?.trim() || null;
-        const fonts = template.previewFontUrls?.length
-          ? template.previewFontUrls.map((u) => (origin ? absolutizeUrlIfRelative(u, origin) : u))
-          : null;
-        const blob = await renderTemplateVideoOnServer({
-          baseUrl: lottieRenderServerUrl,
-          animationData: payload,
-          plateVideoUrl: origin ? absolutizeUrlIfRelative(plateVideoUrl, origin) : plateVideoUrl,
-          audioUrl: audio && origin ? absolutizeUrlIfRelative(audio, origin) : audio,
-          previewFontUrls: fonts,
-          renderSecret: lottieRenderSecret || null,
-          renderEngine: useBrowserEngine ? "browser" : "remotion",
-          onProgress: (r) => setExportProgress(r),
-        });
-        downloadBlob(blob, `${template.id}-export.mp4`);
-        setExportMessage("MP4 download started (server render).");
-      } else {
-        const { blob, extension } = await renderEditedTemplateVideo({
-          animationData: edited,
-          plateVideoUrl,
-          previewFontUrls: template.previewFontUrls ?? null,
-          audioUrl: template.previewAudioUrl?.trim() || null,
-          onProgress: (r) => setExportProgress(r),
-        });
-        downloadBlob(blob, `${template.id}-export.${extension}`);
-        setExportMessage(
-          extension === "mp4"
-            ? "MP4 download started."
-            : "WebM download started. You can convert to MP4 with VLC or FFmpeg if needed."
-        );
-      }
-    } catch (e) {
-      setExportMessage(e instanceof Error ? e.message : "Video export failed.");
-    } finally {
-      setExportVideoBusy(false);
-      setExportProgress(null);
-    }
-  }, [
-    plateVideoUrl,
-    lottieRenderServerUrl,
-    lottieRenderSecret,
-    lottieRenderEngine,
-    template.formFields,
-    template.lottiePreviewUrl,
-    template.id,
-    template.previewAudioUrl,
-    template.previewFontUrls,
-    values,
-  ]);
-
   const title = `${template.id} | ${template.title}`;
+
+  const progressPct = renderProgress != null ? Math.round(renderProgress * 100) : null;
 
   return (
     <div className="min-h-screen bg-[var(--background)] pb-28 pt-2 sm:pb-32 sm:pt-4">
@@ -333,11 +307,12 @@ export function TemplateDetailForm({ template }: Props) {
         open={checkoutOpen}
         onClose={() => setCheckoutOpen(false)}
         template={template}
+        fieldValues={values}
         onPaymentSuccess={handlePaymentVerified}
       />
       <div className="mx-auto max-w-[1400px] px-3 sm:px-5 md:px-6">
         <section className="overflow-hidden rounded-2xl border border-[var(--border)]/80 bg-[var(--card)] shadow-[0_24px_80px_-16px_rgba(15,23,42,0.12)] sm:rounded-3xl">
-          {/* Progress + nav: one strip inside the card (nothing floats above the box) */}
+          {/* Progress + nav */}
           <div className="border-b border-gray-200/80 bg-gradient-to-b from-gray-50/95 to-gray-50/50 px-3 py-4 sm:px-5 sm:py-5">
             <div className="mx-auto grid w-full max-w-[960px] grid-cols-[1fr_auto] grid-rows-[auto_auto] items-center gap-x-2 gap-y-3 sm:grid-cols-[minmax(0,auto)_minmax(0,1fr)_minmax(0,auto)] sm:grid-rows-1 sm:gap-4">
               <Link
@@ -489,66 +464,66 @@ export function TemplateDetailForm({ template }: Props) {
                       }}
                       onClick={() => setCheckoutOpen(true)}
                     >
-                      Download HD Video
+                      {renderOrderId ? "Download HD Video" : "Download HD Video"}
                     </button>
                   </div>
                 </div>
                 {draftMessage ? (
                   <p className="mt-3 text-right text-xs font-medium text-[var(--text-secondary)]">{draftMessage}</p>
                 ) : null}
-                {paidUnlocked ? (
+
+                {/* Post-payment render panel */}
+                {renderOrderId ? (
                   <div className="mt-6 rounded-2xl border border-emerald-200/80 bg-gradient-to-b from-emerald-50/95 to-white p-4 shadow-sm sm:p-5">
-                    <p className="font-body text-sm font-semibold text-emerald-900">Payment received — download your files</p>
-                    <p className="font-body mt-1.5 text-xs leading-relaxed text-emerald-900/85">
-                      {lottieRenderServerUrl
-                        ? "Video is rendered on the render server (Remotion + FFmpeg): plate MP4, edited Lottie, template fonts, and background audio are muxed into a single MP4."
-                        : "Browser export matches the on-page preview (plate + Lottie + fonts). Encoding uses MediaRecorder; format may be WebM depending on the browser. For guaranteed MP4 with FFmpeg mux, set NEXT_PUBLIC_LOTTIE_RENDER_SERVER_URL and run the render-server."}
-                    </p>
-                    <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-                      <button
-                        type="button"
-                        disabled={exportJsonBusy || exportVideoBusy}
-                        onClick={() => void downloadEditedJson()}
-                        className="font-body rounded-xl border-2 border-emerald-600/40 bg-white px-5 py-3 text-sm font-semibold text-emerald-900 shadow-sm transition hover:bg-emerald-50/80 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        {exportJsonBusy ? "Preparing JSON…" : "Download edited Lottie JSON"}
-                      </button>
-                      <button
-                        type="button"
-                        disabled={exportVideoBusy || exportJsonBusy}
-                        onClick={() => void downloadRenderedVideo()}
-                        className="font-body rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        {exportVideoBusy
-                          ? exportProgress != null
-                            ? `Rendering video… ${Math.round(exportProgress * 100)}%`
-                            : lottieRenderServerUrl
-                              ? "Rendering on server…"
-                              : "Preparing video…"
-                          : lottieRenderServerUrl
-                            ? "Download MP4 (server: plate + Lottie + audio)"
-                            : "Download rendered video (plate + Lottie + audio)"}
-                      </button>
-                    </div>
-                    {exportVideoBusy && exportProgress != null ? (
-                      <div
-                        className="mt-3 h-2 w-full overflow-hidden rounded-full bg-emerald-200/70"
-                        role="progressbar"
-                        aria-valuenow={Math.round(exportProgress * 100)}
-                        aria-valuemin={0}
-                        aria-valuemax={100}
-                      >
+                    {renderDone ? (
+                      <>
+                        <p className="font-body text-sm font-semibold text-emerald-900">Your video is ready!</p>
+                        <p className="font-body mt-1 text-xs leading-relaxed text-emerald-900/80">
+                          You can download your video anytime from this page or from your profile orders.
+                        </p>
+                        <div className="mt-4">
+                          <a
+                            href={`/api/orders/${encodeURIComponent(renderOrderId)}/video`}
+                            download
+                            className="font-body inline-flex items-center rounded-xl bg-emerald-600 px-6 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-emerald-700"
+                          >
+                            Download Video
+                          </a>
+                        </div>
+                      </>
+                    ) : renderError ? (
+                      <>
+                        <p className="font-body text-sm font-semibold text-red-800">Render failed</p>
+                        <p className="font-body mt-1 text-xs leading-relaxed text-red-800/80">{renderError}</p>
+                        <p className="font-body mt-2 text-xs text-red-700/70">
+                          Please contact support with your order ID: {renderOrderId}
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="font-body text-sm font-semibold text-emerald-900">
+                          Preparing your video…{progressPct != null ? ` ${progressPct}%` : ""}
+                        </p>
+                        {renderPhase ? (
+                          <p className="font-body mt-0.5 text-xs text-emerald-900/70 capitalize">{renderPhase}</p>
+                        ) : null}
                         <div
-                          className="h-full rounded-full bg-emerald-600 transition-[width] duration-150"
-                          style={{ width: `${Math.round(exportProgress * 100)}%` }}
-                        />
-                      </div>
-                    ) : null}
-                    {exportMessage ? (
-                      <p className="font-body mt-3 text-sm text-emerald-950/90" role="status">
-                        {exportMessage}
-                      </p>
-                    ) : null}
+                          className="mt-3 h-2 w-full overflow-hidden rounded-full bg-emerald-200/70"
+                          role="progressbar"
+                          aria-valuenow={progressPct ?? 0}
+                          aria-valuemin={0}
+                          aria-valuemax={100}
+                        >
+                          <div
+                            className="h-full rounded-full bg-emerald-600 transition-[width] duration-300"
+                            style={{ width: `${progressPct ?? 0}%` }}
+                          />
+                        </div>
+                        <p className="font-body mt-2 text-xs text-emerald-900/60">
+                          This may take a minute. You can safely close this tab and come back later.
+                        </p>
+                      </>
+                    )}
                   </div>
                 ) : null}
               </div>
