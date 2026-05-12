@@ -118,7 +118,20 @@ export function TemplateDetailForm({ template }: Props) {
   const [renderPhase, setRenderPhase] = useState<string | null>(null);
   const [renderError, setRenderError] = useState<string>("");
 
+  const [customAudioUrl, setCustomAudioUrl] = useState<string | null>(null);
+  const [audioBlobUrl, setAudioBlobUrl] = useState<string | null>(null);
+  const [audioFileName, setAudioFileName] = useState<string>("");
+  const [audioUploading, setAudioUploading] = useState(false);
+
+  const audioInputRef = useRef<HTMLInputElement>(null);
+  const audioBlobRef = useRef<string | null>(null);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (audioBlobRef.current) URL.revokeObjectURL(audioBlobRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -279,7 +292,9 @@ export function TemplateDetailForm({ template }: Props) {
     (payload: { paymentId: string; orderId: string }) => {
       setCheckoutOpen(false);
       setRenderOrderId(payload.orderId);
+      setRenderDone(false);
       setRenderProgress(0);
+      setRenderPhase(null);
       setRenderError("");
 
       fetch(`/api/orders/${encodeURIComponent(payload.orderId)}/start-render`, { method: "POST" })
@@ -300,6 +315,46 @@ export function TemplateDetailForm({ template }: Props) {
     []
   );
 
+  const onAudioFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!isAuthenticated) { router.push("/login"); return; }
+
+    // Instant preview via blob URL
+    if (audioBlobRef.current) URL.revokeObjectURL(audioBlobRef.current);
+    const blob = URL.createObjectURL(file);
+    audioBlobRef.current = blob;
+    setAudioBlobUrl(blob);
+    setAudioFileName(file.name);
+
+    setAudioUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("audio", file);
+      const res = await fetch("/api/upload/audio", { method: "POST", body: fd });
+      if (!res.ok) {
+        const err = (await res.json().catch(() => ({}))) as { message?: string };
+        setDraftMessage(err.message ?? "Audio upload failed.");
+        URL.revokeObjectURL(blob);
+        audioBlobRef.current = null;
+        setAudioBlobUrl(null);
+        setAudioFileName("");
+        return;
+      }
+      const data = (await res.json()) as { url: string };
+      setCustomAudioUrl(data.url);
+    } catch {
+      setDraftMessage("Audio upload failed.");
+      URL.revokeObjectURL(blob);
+      audioBlobRef.current = null;
+      setAudioBlobUrl(null);
+      setAudioFileName("");
+    } finally {
+      setAudioUploading(false);
+      if (audioInputRef.current) audioInputRef.current.value = "";
+    }
+  };
+
   const onShare = () => {
     if (typeof navigator !== "undefined" && navigator.share) {
       navigator.share({ title: template.title, url: window.location.href }).catch(() => {});
@@ -319,6 +374,7 @@ export function TemplateDetailForm({ template }: Props) {
         onClose={() => setCheckoutOpen(false)}
         template={template}
         fieldValues={values}
+        customAudioUrl={customAudioUrl}
         onPaymentSuccess={handlePaymentVerified}
       />
 
@@ -345,7 +401,7 @@ export function TemplateDetailForm({ template }: Props) {
               posterAlt={template.title}
               previewVideoUrl={template.previewVideoUrl}
               backgroundVideoUrl={template.backgroundVideoUrl}
-              previewAudioUrl={template.previewAudioUrl}
+              previewAudioUrl={audioBlobUrl ?? template.previewAudioUrl}
               previewFontUrls={template.previewFontUrls}
               fieldValues={values}
               formFields={template.formFields}
@@ -448,11 +504,25 @@ export function TemplateDetailForm({ template }: Props) {
                           accept="image/*"
                           type="file"
                           className="hidden"
-                          onChange={(e) => {
+                          onChange={async (e) => {
                             const file = e.target.files?.[0];
                             if (!file) return;
-                            const url = URL.createObjectURL(file);
-                            setValues((v) => ({ ...v, [field.name]: url }));
+                            // Show blob URL immediately for instant preview
+                            const blobUrl = URL.createObjectURL(file);
+                            setValues((v) => ({ ...v, [field.name]: blobUrl }));
+                            // Upload to server so render server can fetch it
+                            try {
+                              const fd = new FormData();
+                              fd.append("image", file);
+                              const res = await fetch("/api/upload/image", { method: "POST", body: fd });
+                              if (res.ok) {
+                                const data = (await res.json()) as { url: string };
+                                URL.revokeObjectURL(blobUrl);
+                                setValues((v) => ({ ...v, [field.name]: data.url }));
+                              }
+                            } catch {
+                              // keep blob URL for preview; render will fail if paid without re-uploading
+                            }
                           }}
                         />
                         <label
@@ -494,15 +564,46 @@ export function TemplateDetailForm({ template }: Props) {
               ))}
             </div>
 
-            {/* Change Audio */}
+            {/* Audio upload */}
             <div className="px-4 py-2.5 border-t border-[var(--border-light)]">
-              <button
-                type="button"
-                className="font-body w-full inline-flex items-center justify-center gap-2 rounded-xl border border-pink-200 bg-pink-50 py-2.5 text-sm font-medium text-pink-500 transition hover:bg-pink-100 hover:text-pink-600"
-              >
-                <MusicIcon />
-                Change Audio
-              </button>
+              <input
+                ref={audioInputRef}
+                type="file"
+                accept="audio/*"
+                className="hidden"
+                onChange={(e) => void onAudioFileChange(e)}
+              />
+              {customAudioUrl ? (
+                <div className="flex items-center gap-2 rounded-xl border border-pink-200 bg-pink-50 px-3 py-2">
+                  <MusicIcon />
+                  <span className="font-body flex-1 truncate text-sm font-medium text-pink-700" title={audioFileName}>
+                    {audioFileName}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (audioBlobRef.current) { URL.revokeObjectURL(audioBlobRef.current); audioBlobRef.current = null; }
+                      setCustomAudioUrl(null);
+                      setAudioBlobUrl(null);
+                      setAudioFileName("");
+                    }}
+                    aria-label="Remove audio"
+                    className="shrink-0 rounded-full p-1 text-pink-400 transition hover:bg-pink-100 hover:text-pink-700"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  disabled={audioUploading}
+                  onClick={() => audioInputRef.current?.click()}
+                  className="font-body w-full inline-flex items-center justify-center gap-2 rounded-xl border border-pink-200 bg-pink-50 py-2.5 text-sm font-medium text-pink-500 transition hover:bg-pink-100 hover:text-pink-600 disabled:opacity-60"
+                >
+                  <MusicIcon />
+                  {audioUploading ? "Uploading…" : template.previewAudioUrl ? "Change Audio" : "Add Audio"}
+                </button>
+              )}
             </div>
 
             {/* Draft message */}

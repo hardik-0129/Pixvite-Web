@@ -25,11 +25,30 @@ function remotePatternsFromBackendPrefix(): RemotePattern[] {
   }
 }
 
+// URL of the admin server that hosts template asset files.
+// In production set TEMPLATE_ASSETS_UPSTREAM to your admin domain (e.g. https://admin.pixvite.com).
+const TEMPLATE_ASSETS_UPSTREAM = (
+  process.env.TEMPLATE_ASSETS_UPSTREAM || "http://localhost:3001"
+).replace(/\/+$/, "");
+
 const nextConfig: NextConfig = {
+  allowedDevOrigins: ["192.168.1.7"],
   outputFileTracingRoot: projectRoot,
   turbopack: {
     root: projectRoot,
   },
+
+  // Proxy /template-assets/* to the admin server so the browser sees same-origin
+  // URLs (avoids CORS on fetch() for Lottie JSON, audio, etc.).
+  async rewrites() {
+    return [
+      {
+        source: "/template-assets/:path*",
+        destination: `${TEMPLATE_ASSETS_UPSTREAM}/template-assets/:path*`,
+      },
+    ];
+  },
+
   images: {
     remotePatterns: [
       {

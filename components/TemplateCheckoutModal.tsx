@@ -29,6 +29,7 @@ type Props = {
   onClose: () => void;
   template: Template;
   fieldValues?: Record<string, string>;
+  customAudioUrl?: string | null;
   /** Called after the server verifies the Razorpay signature (payment succeeded). */
   onPaymentSuccess?: (payload: { paymentId: string; orderId: string }) => void;
 };
@@ -45,7 +46,7 @@ type AppliedPricing = {
   totalInr: number;
 };
 
-export function TemplateCheckoutModal({ open, onClose, template, fieldValues, onPaymentSuccess }: Props) {
+export function TemplateCheckoutModal({ open, onClose, template, fieldValues, customAudioUrl, onPaymentSuccess }: Props) {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
@@ -266,6 +267,7 @@ export function TemplateCheckoutModal({ open, onClose, template, fieldValues, on
                 razorpay_payment_id: response.razorpay_payment_id,
                 razorpay_signature: response.razorpay_signature,
                 fieldValuesAtPayment: fieldValues ?? {},
+                ...(customAudioUrl ? { customAudioUrl } : {}),
               }),
             });
             if (!mountedRef.current) {

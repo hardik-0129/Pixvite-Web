@@ -50,7 +50,7 @@ export async function POST(request: Request, ctx: RouteContext) {
   const lottiePayload = origin ? absolutizeLottieUrlsForServer(edited, origin) : edited;
 
   const plateVideoUrl = (template.backgroundVideoUrl || template.previewVideoUrl || "").trim();
-  const audioUrl = template.previewAudioUrl?.trim() || "";
+  const audioUrl = (order.customAudioUrl?.trim() || template.previewAudioUrl?.trim() || "");
   const fontUrls = (template.previewFontUrls ?? []).map((u) =>
     origin ? absolutizeUrlIfRelative(u, origin) : u
   );

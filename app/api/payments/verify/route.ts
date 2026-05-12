@@ -26,7 +26,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid body" }, { status: 400 });
   }
 
-  const { razorpay_order_id, razorpay_payment_id, razorpay_signature, fieldValuesAtPayment } =
+  const { razorpay_order_id, razorpay_payment_id, razorpay_signature, fieldValuesAtPayment, customAudioUrl } =
     body as Record<string, unknown>;
 
   const orderId = typeof razorpay_order_id === "string" ? razorpay_order_id.trim() : "";
@@ -64,6 +64,9 @@ export async function POST(request: Request) {
           {
             $set: {
               fieldValuesAtPayment: fieldValuesAtPayment as Record<string, string>,
+              ...(typeof customAudioUrl === "string" && customAudioUrl.trim()
+                ? { customAudioUrl: customAudioUrl.trim() }
+                : {}),
               renderStatus: "pending",
             },
           }

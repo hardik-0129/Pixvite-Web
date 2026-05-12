@@ -22,6 +22,7 @@ export type TemplateOrderDoc = {
   createdAt: string;
   paidAt?: string;
   fieldValuesAtPayment?: Record<string, string>;
+  customAudioUrl?: string;
   renderStatus?: RenderStatus;
   renderJobId?: string;
   renderError?: string;
