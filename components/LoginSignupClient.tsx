@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import Script from "next/script";
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { withBackendPrefix } from "@/lib/backend-url";
 
 declare global {
@@ -22,7 +22,7 @@ declare global {
   }
 }
 
-type Mode = "login" | "signup";
+type Mode = "login" | "signup" | "forgot-email" | "forgot-reset";
 
 function EyeToggleIcon({ open }: { open: boolean }) {
   if (!open) {
@@ -53,36 +53,70 @@ function GoogleFallbackButton({ onClick }: { onClick: () => void }) {
       className="flex h-11 items-center gap-3 rounded-md border border-gray-300 bg-white px-4 text-[14px] font-medium text-[#1f2937] shadow-[0_1px_2px_rgba(0,0,0,0.05)] transition hover:bg-gray-50"
     >
       <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden>
-        <path
-          fill="#FFC107"
-          d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.962 3.046l5.682-5.682C34.068 6.068 29.379 4 24 4 16.047 4 9.074 10.074 9.074 18S16.047 32 24 32c11.05 0 18.074-10.074 18.074-18 0-1.14-.098-2.274-.463-3.917z"
-        />
-        <path
-          fill="#FF3D00"
-          d="m6.306 14.691 6.571 4.819C14.463 17.074 18.961 13 24 13c3.059 0 5.842 1.155 7.962 3.046l5.682-5.682C34.069 6.068 29.379 4 24 4 16.34 4 10.067 9.114 6.306 14.691z"
-        />
-        <path
-          fill="#4CAF50"
-          d="M24 44c5.074 0 9.849-2.004 13.478-5.591l-6.069-5.092C29.834 34.959 26.957 37 23.95 37c-4.11 0-7.6-2.702-8.849-6.459L6.089 34.957C10.069 41.086 15.956 44 24 44z"
-        />
-        <path
-          fill="#1976D2"
-          d="M43.611 20.083 42 20H24v8h11.303a12.072 12.072 0 01-5.069 8.086l-.003-.002 6.07 5.086C41.086 43.068 43.611 20.083 43.611 20.083"
-        />
+        <path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.962 3.046l5.682-5.682C34.068 6.068 29.379 4 24 4 16.047 4 9.074 10.074 9.074 18S16.047 32 24 32c11.05 0 18.074-10.074 18.074-18 0-1.14-.098-2.274-.463-3.917z" />
+        <path fill="#FF3D00" d="m6.306 14.691 6.571 4.819C14.463 17.074 18.961 13 24 13c3.059 0 5.842 1.155 7.962 3.046l5.682-5.682C34.069 6.068 29.379 4 24 4 16.34 4 10.067 9.114 6.306 14.691z" />
+        <path fill="#4CAF50" d="M24 44c5.074 0 9.849-2.004 13.478-5.591l-6.069-5.092C29.834 34.959 26.957 37 23.95 37c-4.11 0-7.6-2.702-8.849-6.459L6.089 34.957C10.069 41.086 15.956 44 24 44z" />
+        <path fill="#1976D2" d="M43.611 20.083 42 20H24v8h11.303a12.072 12.072 0 01-5.069 8.086l-.003-.002 6.07 5.086C41.086 43.068 43.611 20.083 43.611 20.083" />
       </svg>
       Sign in with Google
     </button>
   );
 }
 
-const authFieldStyles =
-  "w-full rounded-[10px] h-[42px] border border-[#b8c5d8] bg-[#f0f5fb] px-[14px] text-[14px] text-[#1c3048] shadow-[inset_0_1px_2px_rgba(255,255,255,0.85),0_1px_3px_rgba(15,23,42,0.08),0_0_0_1px_rgba(15,23,42,0.04)] outline-none transition placeholder:text-[#A5AAB5]/80 focus:border-[#5961F8] focus:bg-white focus:shadow-[0_0_0_3px_rgba(89,97,248,0.2),0_2px_8px_rgba(15,23,42,0.08)] sm:h-[44px] sm:text-[15px]";
-
-const fieldGapClass = "flex flex-col gap-2";
-const labelMbClass = "mb-1 block text-[13px] font-medium sm:text-[14px]";
-
 const primaryActionClass =
   "bg_linear inline-flex w-full cursor-pointer items-center justify-center rounded-[10px] border-0 px-3 py-2.5 text-center text-[14px] font-semibold leading-tight !text-white shadow-sm transition-[filter,box-shadow] disabled:cursor-not-allowed [--tw-text-opacity:1]";
+
+function FloatingInput({
+  id,
+  name,
+  label,
+  type = "text",
+  autoComplete,
+  value,
+  onChange,
+  required,
+  rightElement,
+  inputMode,
+}: {
+  id: string;
+  name?: string;
+  label: string;
+  type?: string;
+  autoComplete?: string;
+  value: string;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  required?: boolean;
+  rightElement?: ReactNode;
+  inputMode?: "text" | "numeric" | "email" | "search" | "tel" | "url" | "decimal" | "none";
+}) {
+  return (
+    <div className="relative">
+      <input
+        id={id}
+        name={name}
+        type={type}
+        autoComplete={autoComplete}
+        required={required}
+        placeholder=" "
+        value={value}
+        onChange={onChange}
+        inputMode={inputMode}
+        className={`peer w-full h-[50px] rounded-[10px] border border-[#b8c5d8] bg-[#f0f5fb] px-[14px] pt-[18px] pb-[2px] text-[14px] text-[#1c3048] outline-none transition-all placeholder-transparent shadow-[inset_0_1px_2px_rgba(255,255,255,0.85),0_1px_3px_rgba(15,23,42,0.08)] focus:border-[#5961F8] focus:bg-white focus:shadow-[0_0_0_3px_rgba(89,97,248,0.2),0_2px_8px_rgba(15,23,42,0.08)]${rightElement ? " pr-[47px]" : ""}`}
+      />
+      <label
+        htmlFor={id}
+        className="pointer-events-none absolute left-[14px] text-[#A5AAB5] transition-all duration-150 top-[7px] text-[11px] font-medium peer-placeholder-shown:top-1/2 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:text-[14px] peer-placeholder-shown:font-normal peer-focus:!top-[7px] peer-focus:!-translate-y-0 peer-focus:!text-[11px] peer-focus:!font-medium"
+      >
+        {label}
+      </label>
+      {rightElement && (
+        <div className="absolute bottom-0 right-2 top-0 flex items-center">
+          {rightElement}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function LoginSignupClient() {
   const router = useRouter();
@@ -92,10 +126,12 @@ export function LoginSignupClient() {
   const [googleReady, setGoogleReady] = useState(false);
   const googleBtnRef = useRef<HTMLDivElement>(null);
 
+  // Login state
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
   const [showLoginPassword, setShowLoginPassword] = useState(false);
 
+  // Signup state
   const [signupName, setSignupName] = useState("");
   const [signupEmail, setSignupEmail] = useState("");
   const [signupPassword, setSignupPassword] = useState("");
@@ -106,12 +142,51 @@ export function LoginSignupClient() {
   const [signupOtp, setSignupOtp] = useState("");
   const [signupOtpSent, setSignupOtpSent] = useState(false);
 
+  // Forgot password state
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotOtp, setForgotOtp] = useState("");
+  const [forgotNewPassword, setForgotNewPassword] = useState("");
+  const [forgotConfirmPassword, setForgotConfirmPassword] = useState("");
+  const [showForgotNewPassword, setShowForgotNewPassword] = useState(false);
+  const [showForgotConfirmPassword, setShowForgotConfirmPassword] = useState(false);
+  const [resendTimer, setResendTimer] = useState(0);
+
   const [loading, setLoading] = useState(false);
   const [sendingOtp, setSendingOtp] = useState(false);
   const [message, setMessage] = useState("");
 
-  const handleGoogleCredential = useCallback((_payload: { credential: string }) => {
-    setMessage("Google account connected. Server-side Google verification can be added next.");
+  // Resend countdown timer
+  useEffect(() => {
+    if (resendTimer <= 0) return;
+    const id = setTimeout(() => setResendTimer((t) => t - 1), 1000);
+    return () => clearTimeout(id);
+  }, [resendTimer]);
+
+  const handleGoogleCredential = useCallback(async (payload: { credential: string }) => {
+    setLoading(true);
+    setMessage("");
+    try {
+      const res = await fetch(withBackendPrefix("/api/auth/google"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ credential: payload.credential }),
+      });
+      const data = (await res.json()) as { ok?: boolean; message?: string; token?: string };
+      if (!res.ok || !data.ok) {
+        setMessage(data.message ?? "Google sign-in failed.");
+        return;
+      }
+      if (data.token) {
+        localStorage.setItem("pixvite_token", data.token);
+        window.dispatchEvent(new Event("pixvite-auth-change"));
+      }
+      redirectAfterAuth();
+    } catch {
+      setMessage("Network error. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const googleInitialized = useRef(false);
@@ -165,11 +240,105 @@ export function LoginSignupClient() {
     }
   }
 
+  async function handleForgotSendOtp() {
+    const email = forgotEmail.trim();
+    if (!email) {
+      setMessage("Please enter your email address.");
+      return;
+    }
+    setSendingOtp(true);
+    setMessage("");
+    try {
+      const res = await fetch(withBackendPrefix("/api/auth/send-otp"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = (await res.json()) as { ok?: boolean; message?: string; devOtp?: string };
+      if (!res.ok) {
+        setMessage(data.message ?? "Failed to send OTP.");
+        return;
+      }
+      setResendTimer(30);
+      setMode("forgot-reset");
+      setMessage(data.devOtp ? `OTP sent. (Dev OTP: ${data.devOtp})` : "");
+    } catch {
+      setMessage("Network error. Please try again.");
+    } finally {
+      setSendingOtp(false);
+    }
+  }
+
+  async function handleForgotResendOtp() {
+    if (resendTimer > 0) return;
+    setSendingOtp(true);
+    setMessage("");
+    try {
+      const res = await fetch(withBackendPrefix("/api/auth/send-otp"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: forgotEmail.trim() }),
+      });
+      const data = (await res.json()) as { ok?: boolean; message?: string; devOtp?: string };
+      if (!res.ok) {
+        setMessage(data.message ?? "Failed to resend OTP.");
+        return;
+      }
+      setResendTimer(30);
+      setMessage(data.devOtp ? `OTP resent. (Dev OTP: ${data.devOtp})` : "OTP resent. Check your email.");
+    } catch {
+      setMessage("Network error. Please try again.");
+    } finally {
+      setSendingOtp(false);
+    }
+  }
+
+  async function handleResetPassword(e: { preventDefault(): void }) {
+    e.preventDefault();
+    if (forgotNewPassword.length < 8) {
+      setMessage("Password must be at least 8 characters.");
+      return;
+    }
+    if (forgotNewPassword !== forgotConfirmPassword) {
+      setMessage("Passwords do not match.");
+      return;
+    }
+    setLoading(true);
+    setMessage("");
+    try {
+      const res = await fetch(withBackendPrefix("/api/auth/reset-password"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: forgotEmail.trim(),
+          otp: forgotOtp.trim(),
+          newPassword: forgotNewPassword,
+        }),
+      });
+      const data = (await res.json()) as { ok?: boolean; message?: string };
+      if (!res.ok || !data.ok) {
+        setMessage(data.message ?? "Failed to reset password.");
+        return;
+      }
+      // Success — go back to login
+      setForgotEmail("");
+      setForgotOtp("");
+      setForgotNewPassword("");
+      setForgotConfirmPassword("");
+      setMode("login");
+      setMessage("Password reset successfully. Please log in.");
+    } catch {
+      setMessage("Network error. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   function redirectAfterAuth() {
     router.push("/");
   }
 
-  async function handleSignIn(e: React.FormEvent<HTMLFormElement>) {
+  async function handleSignIn(e: { preventDefault(): void }) {
     e.preventDefault();
     setLoading(true);
     setMessage("");
@@ -190,6 +359,7 @@ export function LoginSignupClient() {
       }
       if (data.token) {
         localStorage.setItem("pixvite_token", data.token);
+        window.dispatchEvent(new Event("pixvite-auth-change"));
       }
       setMessage("Signed in successfully.");
       redirectAfterAuth();
@@ -200,7 +370,7 @@ export function LoginSignupClient() {
     }
   }
 
-  async function handleSignUp(e: React.FormEvent<HTMLFormElement>) {
+  async function handleSignUp(e: { preventDefault(): void }) {
     e.preventDefault();
     if (!signupOtpSent) return;
 
@@ -250,13 +420,18 @@ export function LoginSignupClient() {
   }
 
   const title =
-    mode === "login"
-      ? "Welcome Back to Myvideoinvites!"
-      : "Create an Account";
+    mode === "login" ? "Welcome Back to Myvideoinvites!" :
+    mode === "signup" ? "Create an Account" :
+    mode === "forgot-email" ? "Forgot your password?" :
+    "Reset Your Password";
+
   const subtitle =
-    mode === "login"
-      ? "It sure is great to see you again."
-      : "Sign up now and start your journey with Myvideoinvites (it's free)!";
+    mode === "login" ? "It sure is great to see you again." :
+    mode === "signup" ? "Sign up now and start your journey with Myvideoinvites (it's free)!" :
+    mode === "forgot-email" ? "Simply enter the email address you used to create your account, and we'll send you a one-time password (OTP) to reset your password." :
+    null;
+
+  const showGoogleSection = mode === "login" || mode === "signup";
 
   return (
     <>
@@ -266,53 +441,37 @@ export function LoginSignupClient() {
         onLoad={() => setGoogleReady(true)}
       />
       <div
-        className="fixed inset-0 z-[999] flex items-center justify-center overflow-y-auto"
+        className="fixed inset-0 z-[999] overflow-y-auto"
         style={{ backgroundColor: "rgba(28, 39, 48, 0.5)", backdropFilter: "blur(4px)" }}
       >
-        <div
-          className="box-border flex w-full max-w-[min(100%,32rem)] flex-col items-stretch justify-center max-sm:fixed max-sm:bottom-0 max-sm:max-w-none max-sm:rounded-t-xl max-sm:bg-transparent sm:mx-auto sm:rounded-xl"
-          style={{ transition: "transform 0.2s ease-in-out", margin: "auto 0", willChange: "transform" }}
-        >
-          <div className="relative m-2 w-full max-w-[min(100%,28rem)] rounded-2xl bg-white shadow-[0_12px_40px_rgba(15,23,42,0.12)] max-sm:mx-auto max-sm:w-[calc(100%-1rem)] max-sm:rounded-t-xl sm:max-w-[28rem] md:max-w-[30rem] sm:rounded-xl">
+        <div className="flex min-h-full items-end justify-center sm:items-center sm:p-4">
+          <div className="relative w-full sm:max-w-[480px]">
+            <div className="relative rounded-t-2xl bg-white px-6 pb-8 pt-12 shadow-2xl sm:rounded-2xl sm:px-8">
               <button
                 type="button"
                 aria-label="Close"
-                className="absolute right-3 top-3 z-[100] flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full bg-transparent text-[#1c3048] transition hover:bg-gray-100 focus-visible:outline focus-visible:ring-2 focus-visible:ring-[#5961F8] focus-visible:ring-offset-2"
+                className="absolute right-4 top-4 z-[100] flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-gray-100 text-gray-600 transition hover:bg-gray-200 focus-visible:outline focus-visible:ring-2 focus-visible:ring-[#5961F8] focus-visible:ring-offset-2"
                 onClick={() => router.back()}
               >
-                <svg
-                  width="18"
-                  height="18"
-                  viewBox="0 0 16 16"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="text-[#1c3048]"
-                  aria-hidden
-                >
-                  <path
-                    d="m4 4 8 8m-8 0 8-8"
-                    stroke="currentColor"
-                    strokeLinecap="round"
-                    strokeWidth="2.25"
-                  />
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                  <path d="m4 4 8 8m-8 0 8-8" stroke="currentColor" strokeLinecap="round" strokeWidth="2.25" />
                 </svg>
               </button>
 
-              <div className="flex flex-row items-center justify-center px-6 pb-0.5 pt-11 sm:px-8 sm:pt-12">
-                <h2 className="text-center text-[21px] font-semibold leading-tight text-black sm:text-[28px]">{title}</h2>
+              <div className="mb-2 text-center">
+                <h2 className="text-[22px] font-semibold leading-tight text-black sm:text-[26px]">{title}</h2>
               </div>
 
-              <div className="px-6 pb-4 pt-1 sm:px-8 sm:pb-4">
-                <p
-                  className="mx-auto max-w-[40ch] text-center text-[13px] leading-snug sm:text-[15px]"
-                  style={{ color: "rgb(28, 48, 72)" }}
-                >
+              {subtitle && (
+                <p className="mb-5 text-center text-[13px] leading-snug sm:text-[15px]" style={{ color: "rgb(28, 48, 72)" }}>
                   {subtitle}
                 </p>
+              )}
 
-                <div className="mt-2 flex flex-col gap-2 sm:mt-2.5">
-                  <div className="flex w-full justify-center pt-0.5">
-                    <div className="flex h-9 shrink-0 items-center justify-center sm:h-[38px]">
+              {showGoogleSection && (
+                <>
+                  <div className="mb-4 flex justify-center">
+                    <div className="flex h-[44px] items-center justify-center">
                       {process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ? (
                         <div ref={googleBtnRef} className="flex items-center justify-center [&>div]:justify-center" />
                       ) : (
@@ -320,291 +479,333 @@ export function LoginSignupClient() {
                       )}
                     </div>
                   </div>
-
-                  <div className="flex items-center justify-between">
-                    <div className="h-px w-[45%] bg-[#ABB2C7]" />
+                  <div className="mb-5 flex items-center gap-3">
+                    <div className="h-px flex-1 bg-[#ABB2C7]" />
                     <p className="text-[14px] text-black sm:text-[16px]">or</p>
-                    <div className="h-px w-[45%] bg-[#ABB2C7]" />
+                    <div className="h-px flex-1 bg-[#ABB2C7]" />
+                  </div>
+                </>
+              )}
+
+              {/* ── LOGIN ── */}
+              {mode === "login" && (
+                <>
+                  <form ref={loginFormRef} onSubmit={handleSignIn} className="flex flex-col gap-3" autoComplete="off">
+                    <FloatingInput
+                      id="login-email"
+                      name="email"
+                      label="Email"
+                      type="email"
+                      autoComplete="off"
+                      value={loginEmail}
+                      onChange={(e) => setLoginEmail(e.target.value)}
+                      required
+                    />
+                    <FloatingInput
+                      id="login-password"
+                      name="password"
+                      label="Password"
+                      type={showLoginPassword ? "text" : "password"}
+                      autoComplete="off"
+                      value={loginPassword}
+                      onChange={(e) => setLoginPassword(e.target.value)}
+                      required
+                      rightElement={
+                        <button
+                          type="button"
+                          onClick={() => setShowLoginPassword((v) => !v)}
+                          className="flex h-10 w-10 cursor-pointer select-none items-center justify-center rounded transition-colors duration-100 hover:bg-gray-200"
+                          aria-label={showLoginPassword ? "Hide password" : "Show password"}
+                        >
+                          <EyeToggleIcon open={showLoginPassword} />
+                        </button>
+                      }
+                    />
+                    <button type="submit" className="sr-only" tabIndex={-1} aria-hidden>Submit</button>
+                  </form>
+
+                  <button
+                    type="button"
+                    onClick={() => { setMode("forgot-email"); setMessage(""); }}
+                    className="mb-3 mt-2 cursor-pointer text-left text-[13px] text-[#5961F8] sm:text-[14px]"
+                  >
+                    Forgot your Password?
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => loginFormRef.current?.requestSubmit()}
+                    className={`${primaryActionClass} min-h-[44px]`}
+                    disabled={loading}
+                  >
+                    {loading ? "Logging in..." : "Log in"}
+                  </button>
+
+                  <p className="mt-3 text-center text-[13px] text-black">
+                    New to Myvideoinvites?
+                    <button type="button" onClick={() => { setMode("signup"); setMessage(""); }} className="text-[#5961F8]">
+                      <span className="cursor-pointer"> Create an account</span>
+                    </button>
+                  </p>
+                </>
+              )}
+
+              {/* ── SIGNUP ── */}
+              {mode === "signup" && (
+                <form onSubmit={handleSignUp} className="flex flex-col gap-3">
+                  <FloatingInput
+                    id="signup-name"
+                    name="name"
+                    label="Name"
+                    autoComplete="name"
+                    value={signupName}
+                    onChange={(e) => setSignupName(e.target.value)}
+                    required
+                  />
+                  <FloatingInput
+                    id="signup-email"
+                    name="email"
+                    label="Email"
+                    type="email"
+                    autoComplete="email"
+                    value={signupEmail}
+                    onChange={(e) => {
+                      setSignupEmail(e.target.value);
+                      setSignupOtpSent(false);
+                      setSignupOtp("");
+                    }}
+                    required
+                  />
+                  <FloatingInput
+                    id="signup-password"
+                    name="signup-password"
+                    label="Password"
+                    type={showSignupPassword ? "text" : "password"}
+                    autoComplete="new-password"
+                    value={signupPassword}
+                    onChange={(e) => setSignupPassword(e.target.value)}
+                    required
+                    rightElement={
+                      <button
+                        type="button"
+                        className="flex h-10 w-10 cursor-pointer select-none items-center justify-center rounded transition-colors duration-100 hover:bg-gray-200"
+                        onClick={() => setShowSignupPassword((v) => !v)}
+                        aria-label={showSignupPassword ? "Hide password" : "Show password"}
+                      >
+                        <EyeToggleIcon open={showSignupPassword} />
+                      </button>
+                    }
+                  />
+                  <FloatingInput
+                    id="signup-confirm-password"
+                    name="signup-confirm-password"
+                    label="Confirm Password"
+                    type={showSignupConfirmPassword ? "text" : "password"}
+                    autoComplete="new-password"
+                    value={signupConfirmPassword}
+                    onChange={(e) => setSignupConfirmPassword(e.target.value)}
+                    required
+                    rightElement={
+                      <button
+                        type="button"
+                        className="flex h-10 w-10 cursor-pointer select-none items-center justify-center rounded transition-colors duration-100 hover:bg-gray-200"
+                        onClick={() => setShowSignupConfirmPassword((v) => !v)}
+                        aria-label={showSignupConfirmPassword ? "Hide confirm password" : "Show confirm password"}
+                      >
+                        <EyeToggleIcon open={showSignupConfirmPassword} />
+                      </button>
+                    }
+                  />
+
+                  {signupOtpSent ? (
+                    <FloatingInput
+                      id="signup-otp"
+                      name="otp"
+                      label="Enter OTP"
+                      inputMode="numeric"
+                      value={signupOtp}
+                      onChange={(e) => setSignupOtp(e.target.value)}
+                      required
+                    />
+                  ) : null}
+
+                  <div className="flex items-start gap-2 pt-1">
+                    <input
+                      id="signup-terms"
+                      type="checkbox"
+                      checked={agreeTerms}
+                      onChange={(e) => setAgreeTerms(e.target.checked)}
+                      className="mt-0.5 h-4 w-4 shrink-0 rounded border border-gray-300 bg-gray-50"
+                    />
+                    <label htmlFor="signup-terms" className="text-[12px] font-medium leading-snug sm:text-[14px]" style={{ color: "rgb(165, 170, 181)" }}>
+                      I agree to Myvideoinvites
+                      <span className="text-[#5961F8]">
+                        {" "}<Link href="/terms-conditions" target="_blank" rel="noopener noreferrer">Terms of Service</Link>{" "}
+                      </span>
+                      and
+                      <span className="text-[#5961F8]">
+                        {" "}<Link href="/privacy-policy" target="_blank" rel="noopener noreferrer">Privacy policy</Link>
+                      </span>
+                    </label>
                   </div>
 
-                  {mode === "login" ? (
-                    <>
-                      <form ref={loginFormRef} onSubmit={handleSignIn}>
-                        <div className={fieldGapClass}>
-                          <div>
-                            <label htmlFor="login-email" className={labelMbClass} style={{ color: "rgb(165, 170, 181)" }}>
-                              Email
-                            </label>
-                            <input
-                              id="login-email"
-                              name="email"
-                              type="email"
-                              autoComplete="email"
-                              required
-                              placeholder=" "
-                              className={authFieldStyles}
-                              value={loginEmail}
-                              onChange={(e) => setLoginEmail(e.target.value)}
-                            />
-                          </div>
-
-                          <div className="w-full">
-                            <label htmlFor="login-password" className={labelMbClass} style={{ color: "rgb(165, 170, 181)" }}>
-                              Password
-                            </label>
-                            <div className="relative">
-                              <input
-                                id="login-password"
-                                name="password"
-                                type={showLoginPassword ? "text" : "password"}
-                                autoComplete="current-password"
-                                required
-                                placeholder=" "
-                                className={`${authFieldStyles} pl-[14px] pr-[47px]`}
-                                value={loginPassword}
-                                onChange={(e) => setLoginPassword(e.target.value)}
-                              />
-                              <div className="absolute bottom-0 right-2 top-0 flex items-center">
-                                <button
-                                  type="button"
-                                  onClick={() => setShowLoginPassword((v) => !v)}
-                                  className="flex h-10 w-10 cursor-pointer select-none items-center justify-center rounded transition-colors duration-100 hover:bg-gray-200"
-                                  aria-label={showLoginPassword ? "Hide password" : "Show password"}
-                                >
-                                  <EyeToggleIcon open={showLoginPassword} />
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-
-                          <button type="submit" className="sr-only" tabIndex={-1} aria-hidden>
-                            Submit
-                          </button>
-                        </div>
-                      </form>
-
+                  {!signupOtpSent ? (
+                    <div className="flex items-center justify-center gap-2">
                       <button
                         type="button"
-                        onClick={() => setMessage("Forgot password reset can be wired next.")}
-                        className="mt-1 mb-2 cursor-pointer text-left text-[13px] text-[#5961F8] sm:text-[14px]"
-                      >
-                        Forgot your Password?
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => loginFormRef.current?.requestSubmit()}
+                        onClick={() => void sendOtp(signupEmail)}
+                        disabled={sendingOtp}
                         className={`${primaryActionClass} min-h-[44px]`}
-                        disabled={loading}
+                        style={{ textTransform: "unset" }}
                       >
-                        {loading ? "Logging in..." : "Log in"}
+                        {sendingOtp ? "Sending OTP..." : "Send Otp"}
                       </button>
-
-                      <p className="mt-2 text-center text-[13px] text-black">
-                        New to Myvideoinvites?
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setMode("signup");
-                            setMessage("");
-                          }}
-                          className="text-[#5961F8]"
-                        >
-                          <span className="cursor-pointer"> Create an account</span>
-                        </button>
-                      </p>
-                    </>
+                    </div>
                   ) : (
-                    <form onSubmit={handleSignUp}>
-                      <div className={fieldGapClass}>
-                        <div>
-                          <label htmlFor="signup-name" className={`${labelMbClass} text-[#A5AAB5]`}>
-                            Name
-                          </label>
-                          <input
-                            id="signup-name"
-                            name="name"
-                            autoComplete="name"
-                            required
-                            placeholder=" "
-                            className={authFieldStyles}
-                            value={signupName}
-                            onChange={(e) => setSignupName(e.target.value)}
-                          />
-                        </div>
-                        <div>
-                          <label htmlFor="signup-email" className={`${labelMbClass} text-[#A5AAB5]`}>
-                            Email
-                          </label>
-                          <input
-                            id="signup-email"
-                            type="email"
-                            name="email"
-                            autoComplete="email"
-                            required
-                            placeholder=" "
-                            className={authFieldStyles}
-                            value={signupEmail}
-                            onChange={(e) => {
-                              setSignupEmail(e.target.value);
-                              setSignupOtpSent(false);
-                              setSignupOtp("");
-                            }}
-                          />
-                        </div>
-
-                        <div className="w-full">
-                          <label htmlFor="signup-password" className={`${labelMbClass} text-[#A5AAB5]`}>
-                            Password
-                          </label>
-                          <div className="relative">
-                            <input
-                              id="signup-password"
-                              type={showSignupPassword ? "text" : "password"}
-                              name="signup-password"
-                              autoComplete="new-password"
-                              required
-                              placeholder=" "
-                              className={`${authFieldStyles} pl-[14px] pr-[47px]`}
-                              value={signupPassword}
-                              onChange={(e) => setSignupPassword(e.target.value)}
-                            />
-                            <div className="absolute bottom-0 right-2 top-0 flex items-center">
-                              <button
-                                type="button"
-                                className="flex h-10 w-10 cursor-pointer select-none items-center justify-center rounded transition-colors duration-100 hover:bg-gray-200"
-                                onClick={() => setShowSignupPassword((v) => !v)}
-                                aria-label={showSignupPassword ? "Hide password" : "Show password"}
-                              >
-                                <EyeToggleIcon open={showSignupPassword} />
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="w-full">
-                          <label htmlFor="signup-confirm-password" className={`${labelMbClass} text-[#A5AAB5]`}>
-                            Confirm Password
-                          </label>
-                          <div className="relative">
-                            <input
-                              id="signup-confirm-password"
-                              type={showSignupConfirmPassword ? "text" : "password"}
-                              name="signup-confirm-password"
-                              autoComplete="new-password"
-                              required
-                              placeholder=" "
-                              className={`${authFieldStyles} pl-[14px] pr-[47px]`}
-                              value={signupConfirmPassword}
-                              onChange={(e) => setSignupConfirmPassword(e.target.value)}
-                            />
-                            <div className="absolute bottom-0 right-2 top-0 flex items-center">
-                              <button
-                                type="button"
-                                className="flex h-10 w-10 cursor-pointer select-none items-center justify-center rounded transition-colors duration-100 hover:bg-gray-200"
-                                onClick={() => setShowSignupConfirmPassword((v) => !v)}
-                                aria-label={
-                                  showSignupConfirmPassword ? "Hide confirm password" : "Show confirm password"
-                                }
-                              >
-                                <EyeToggleIcon open={showSignupConfirmPassword} />
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-
-                        {signupOtpSent ? (
-                          <div>
-                            <label htmlFor="signup-otp" className={`${labelMbClass} text-[#A5AAB5]`}>
-                              Enter OTP
-                            </label>
-                            <input
-                              id="signup-otp"
-                              name="otp"
-                              inputMode="numeric"
-                              placeholder=" "
-                              className={authFieldStyles}
-                              value={signupOtp}
-                              onChange={(e) => setSignupOtp(e.target.value)}
-                              required
-                            />
-                          </div>
-                        ) : null}
-                      </div>
-
-                      <div className="mb-2 flex items-start pt-0.5 sm:mb-3">
-                        <div className="flex h-5 items-center">
-                          <input
-                            id="signup-terms"
-                            type="checkbox"
-                            checked={agreeTerms}
-                            onChange={(e) => setAgreeTerms(e.target.checked)}
-                            className="h-4 w-4 rounded border border-gray-300 bg-gray-50"
-                          />
-                        </div>
-                        <label
-                          htmlFor="signup-terms"
-                          className="ml-2 text-[12px] font-medium leading-snug sm:text-[14px]"
-                          style={{ color: "rgb(165, 170, 181)" }}
-                        >
-                          I agree to Myvideoinvites
-                          <span className="text-[#5961F8]">
-                            {" "}
-                            <Link href="/terms-conditions" target="_blank" rel="noopener noreferrer">
-                              Terms of Service
-                            </Link>{" "}
-                          </span>
-                          and
-                          <span className="text-[#5961F8]">
-                            {" "}
-                            <Link href="/privacy-policy" target="_blank" rel="noopener noreferrer">
-                              Privacy policy
-                            </Link>
-                          </span>
-                        </label>
-                      </div>
-
-                      {!signupOtpSent ? (
-                        <div className="flex items-center justify-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => void sendOtp(signupEmail)}
-                            disabled={sendingOtp}
-                            className={`${primaryActionClass} min-h-[44px]`}
-                            style={{ textTransform: "unset" }}
-                          >
-                            {sendingOtp ? "Sending OTP..." : "Send Otp"}
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          type="submit"
-                          disabled={loading}
-                          className={`${primaryActionClass} mb-1 min-h-[44px]`}
-                        >
-                          {loading ? "Creating account..." : "Create Account"}
-                        </button>
-                      )}
-
-                      <p className="mt-1.5 text-center text-[13px] text-black pb-1">
-                        Already have an account?
-                        <button
-                          type="button"
-                          className="text-[#5961F8]"
-                          onClick={() => {
-                            setMode("login");
-                            setMessage("");
-                          }}
-                        >
-                          <span className="cursor-pointer"> Log in</span>
-                        </button>
-                      </p>
-                    </form>
+                    <button type="submit" disabled={loading} className={`${primaryActionClass} mb-1 min-h-[44px]`}>
+                      {loading ? "Creating account..." : "Create Account"}
+                    </button>
                   )}
-                </div>
 
-                {message ? <p className="mt-1.5 text-center text-[12px] leading-snug text-[#475569] sm:text-[13px]">{message}</p> : null}
-              </div>
+                  <p className="mt-1 pb-1 text-center text-[13px] text-black">
+                    Already have an account?
+                    <button type="button" className="text-[#5961F8]" onClick={() => { setMode("login"); setMessage(""); }}>
+                      <span className="cursor-pointer"> Log in</span>
+                    </button>
+                  </p>
+                </form>
+              )}
+
+              {/* ── FORGOT PASSWORD — STEP 1: Email ── */}
+              {mode === "forgot-email" && (
+                <div className="flex flex-col gap-3">
+                  <FloatingInput
+                    id="forgot-email"
+                    label="Email"
+                    type="email"
+                    autoComplete="off"
+                    value={forgotEmail}
+                    onChange={(e) => setForgotEmail(e.target.value)}
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => void handleForgotSendOtp()}
+                    disabled={sendingOtp}
+                    className={`${primaryActionClass} min-h-[44px]`}
+                  >
+                    {sendingOtp ? "Sending OTP..." : "Send Otp"}
+                  </button>
+                  <div className="flex justify-center">
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-gray-50 px-4 py-2 text-[13px] text-gray-600 transition hover:bg-gray-100"
+                      onClick={() => { setMode("signup"); setMessage(""); setForgotEmail(""); }}
+                    >
+                      Don&apos;t have an account?{" "}
+                      <span className="font-medium" style={{ color: "var(--brand-end)" }}>Create one free</span>
+                      <span>→</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* ── FORGOT PASSWORD — STEP 2: OTP + New Password ── */}
+              {mode === "forgot-reset" && (
+                <form onSubmit={handleResetPassword} className="flex flex-col gap-3">
+                  <div className="mb-1 rounded-xl bg-[#f8f9fc] px-4 py-3 text-center text-[13px] leading-snug text-[#1c3048]">
+                    A verification code (OTP) has been sent to your email:
+                    <div className="mt-0.5 font-semibold" style={{ color: "var(--brand-end)" }}>
+                      {forgotEmail}
+                    </div>
+                    <div className="mt-1 text-[12px] text-gray-500">
+                      Please check your inbox and use the OTP to create a new password, then log in again.
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1">
+                      <FloatingInput
+                        id="forgot-otp"
+                        label="Enter OTP"
+                        inputMode="numeric"
+                        autoComplete="off"
+                        value={forgotOtp}
+                        onChange={(e) => setForgotOtp(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => void handleForgotResendOtp()}
+                      disabled={resendTimer > 0 || sendingOtp}
+                      className="shrink-0 rounded-lg border border-gray-200 bg-gray-100 px-3 py-2 text-[13px] font-medium text-gray-600 transition hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {resendTimer > 0 ? `Resend in ${resendTimer}s` : "Resend"}
+                    </button>
+                  </div>
+
+                  <FloatingInput
+                    id="forgot-new-password"
+                    label="Enter New Password"
+                    type={showForgotNewPassword ? "text" : "password"}
+                    autoComplete="new-password"
+                    value={forgotNewPassword}
+                    onChange={(e) => setForgotNewPassword(e.target.value)}
+                    required
+                    rightElement={
+                      <button
+                        type="button"
+                        onClick={() => setShowForgotNewPassword((v) => !v)}
+                        className="flex h-10 w-10 cursor-pointer select-none items-center justify-center rounded transition-colors duration-100 hover:bg-gray-200"
+                        aria-label={showForgotNewPassword ? "Hide password" : "Show password"}
+                      >
+                        <EyeToggleIcon open={showForgotNewPassword} />
+                      </button>
+                    }
+                  />
+                  <FloatingInput
+                    id="forgot-confirm-password"
+                    label="Enter Confirm Password"
+                    type={showForgotConfirmPassword ? "text" : "password"}
+                    autoComplete="new-password"
+                    value={forgotConfirmPassword}
+                    onChange={(e) => setForgotConfirmPassword(e.target.value)}
+                    required
+                    rightElement={
+                      <button
+                        type="button"
+                        onClick={() => setShowForgotConfirmPassword((v) => !v)}
+                        className="flex h-10 w-10 cursor-pointer select-none items-center justify-center rounded transition-colors duration-100 hover:bg-gray-200"
+                        aria-label={showForgotConfirmPassword ? "Hide password" : "Show password"}
+                      >
+                        <EyeToggleIcon open={showForgotConfirmPassword} />
+                      </button>
+                    }
+                  />
+
+                  <button type="submit" disabled={loading} className={`${primaryActionClass} min-h-[44px]`}>
+                    {loading ? "Updating..." : "Update Password"}
+                  </button>
+
+                  <div className="flex justify-center">
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-gray-50 px-4 py-2 text-[13px] text-gray-600 transition hover:bg-gray-100"
+                      onClick={() => { setMode("signup"); setMessage(""); }}
+                    >
+                      Don&apos;t have an account?{" "}
+                      <span className="font-medium" style={{ color: "var(--brand-end)" }}>Create one free</span>
+                      <span>→</span>
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              {message ? (
+                <p className="mt-2 text-center text-[12px] leading-snug text-[#475569] sm:text-[13px]">{message}</p>
+              ) : null}
+            </div>
           </div>
         </div>
       </div>

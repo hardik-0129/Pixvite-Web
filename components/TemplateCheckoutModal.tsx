@@ -24,12 +24,20 @@ function loadRazorpayScript(): Promise<boolean> {
   });
 }
 
+type PrefillData = {
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  phone?: string;
+};
+
 type Props = {
   open: boolean;
   onClose: () => void;
   template: Template;
   fieldValues?: Record<string, string>;
   customAudioUrl?: string | null;
+  prefill?: PrefillData;
   /** Called after the server verifies the Razorpay signature (payment succeeded). */
   onPaymentSuccess?: (payload: { paymentId: string; orderId: string }) => void;
 };
@@ -46,7 +54,7 @@ type AppliedPricing = {
   totalInr: number;
 };
 
-export function TemplateCheckoutModal({ open, onClose, template, fieldValues, customAudioUrl, onPaymentSuccess }: Props) {
+export function TemplateCheckoutModal({ open, onClose, template, fieldValues, customAudioUrl, prefill, onPaymentSuccess }: Props) {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
@@ -101,8 +109,13 @@ export function TemplateCheckoutModal({ open, onClose, template, fieldValues, cu
       setCheckoutInProgress(false);
       setPaymentError(null);
       setPaymentSuccess(false);
+    } else {
+      setFirstName(prefill?.firstName ?? "");
+      setLastName(prefill?.lastName ?? "");
+      setEmail(prefill?.email ?? "");
+      setPhone(prefill?.phone ?? "");
     }
-  }, [open]);
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!open) return null;
 

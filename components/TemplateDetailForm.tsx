@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Template } from "@/lib/templates";
 import { isFormFieldEnabled } from "@/lib/templates";
+import { withBackendPrefix } from "@/lib/backend-url";
 import { InstagramSupportLink } from "./InstagramSupportLink";
 import { TemplateCheckoutModal } from "./TemplateCheckoutModal";
 import { TemplateEditorPreview } from "./TemplateEditorPreview";
@@ -111,6 +112,7 @@ export function TemplateDetailForm({ template }: Props) {
   const [draftMessage, setDraftMessage] = useState<string>("");
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const [prefillProfile, setPrefillProfile] = useState<{ firstName?: string; lastName?: string; email?: string; phone?: string } | undefined>(undefined);
 
   const [renderOrderId, setRenderOrderId] = useState<string | null>(null);
   const [renderDone, setRenderDone] = useState(false);
@@ -131,6 +133,22 @@ export function TemplateDetailForm({ template }: Props) {
     return () => {
       if (audioBlobRef.current) URL.revokeObjectURL(audioBlobRef.current);
     };
+  }, []);
+
+  useEffect(() => {
+    fetch(withBackendPrefix("/api/profile"), { cache: "no-store" })
+      .then((r) => r.json())
+      .then((data: { ok?: boolean; user?: { firstName?: string; lastName?: string; email?: string; phone?: string } }) => {
+        if (data.ok && data.user) {
+          setPrefillProfile({
+            firstName: data.user.firstName ?? "",
+            lastName: data.user.lastName ?? "",
+            email: data.user.email ?? "",
+            phone: data.user.phone ?? "",
+          });
+        }
+      })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -375,6 +393,7 @@ export function TemplateDetailForm({ template }: Props) {
         template={template}
         fieldValues={values}
         customAudioUrl={customAudioUrl}
+        prefill={prefillProfile}
         onPaymentSuccess={handlePaymentVerified}
       />
 

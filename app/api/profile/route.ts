@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
-import { getUserByEmail, updateUserProfileByEmail } from "@/lib/auth-store";
+import { deleteUserAndDataByEmail, getUserByEmail, updateUserPhotoByEmail, updateUserProfileByEmail } from "@/lib/auth-store";
 import { getTemplateOrdersByEmail } from "@/lib/template-orders";
 
 type SessionPayload = jwt.JwtPayload & {
@@ -66,6 +66,7 @@ export async function GET(request: Request) {
       email: user.email,
       phone,
       memberSince: user.createdAt,
+      photoUrl: user.photoUrl ?? null,
     },
     orders,
   });
@@ -86,16 +87,10 @@ export async function PUT(request: Request) {
 
   const firstName = typeof body === "object" && body && "firstName" in body ? String((body as { firstName: unknown }).firstName ?? "").trim() : "";
   const lastName = typeof body === "object" && body && "lastName" in body ? String((body as { lastName: unknown }).lastName ?? "").trim() : "";
-  const nextEmail =
-    typeof body === "object" && body && "email" in body
-      ? String((body as { email: unknown }).email ?? "").trim().toLowerCase()
-      : "";
+  const phone = typeof body === "object" && body && "phone" in body ? String((body as { phone: unknown }).phone ?? "").trim() : undefined;
 
-  if (!firstName || !lastName || !nextEmail) {
-    return NextResponse.json({ message: "First name, last name and email are required." }, { status: 400 });
-  }
-  if (!emailOk(nextEmail)) {
-    return NextResponse.json({ message: "Enter a valid email address." }, { status: 400 });
+  if (!firstName || !lastName) {
+    return NextResponse.json({ message: "First name and last name are required." }, { status: 400 });
   }
 
   try {
@@ -103,7 +98,7 @@ export async function PUT(request: Request) {
       currentEmail: session.email,
       firstName,
       lastName,
-      nextEmail,
+      phone,
     });
     if (!updated) {
       return NextResponse.json({ message: "User not found." }, { status: 404 });
@@ -156,4 +151,52 @@ export async function PUT(request: Request) {
     }
     return NextResponse.json({ message: "Could not update profile." }, { status: 500 });
   }
+}
+
+export async function PATCH(request: Request) {
+  const session = await getSessionFromRequest(request);
+  if (!session) {
+    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  }
+
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ message: "Invalid JSON body." }, { status: 400 });
+  }
+
+  if (typeof body !== "object" || body === null || !("photoUrl" in body)) {
+    return NextResponse.json({ message: "Nothing to update." }, { status: 400 });
+  }
+
+  const rawUrl = (body as { photoUrl: unknown }).photoUrl;
+  const photoUrl = rawUrl === null ? null : String(rawUrl);
+
+  const updated = await updateUserPhotoByEmail(session.email, photoUrl);
+  if (!updated) {
+    return NextResponse.json({ message: "User not found." }, { status: 404 });
+  }
+
+  return NextResponse.json({ ok: true, photoUrl });
+}
+
+export async function DELETE(request: Request) {
+  const session = await getSessionFromRequest(request);
+  if (!session) {
+    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  }
+
+  try {
+    await deleteUserAndDataByEmail(session.email);
+  } catch {
+    return NextResponse.json({ message: "Could not delete account." }, { status: 500 });
+  }
+
+  const response = NextResponse.json({ ok: true, message: "Account deleted." });
+  // Clear all auth cookies
+  for (const name of ["pixvite_token", "pixvite_auth", "pixvite_role"]) {
+    response.cookies.set(name, "", { path: "/", maxAge: 0 });
+  }
+  return response;
 }

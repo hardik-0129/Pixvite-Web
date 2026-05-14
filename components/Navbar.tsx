@@ -223,20 +223,19 @@ export function Navbar() {
   }, []);
 
   useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  useEffect(() => {
     function syncAuthFromLocalStorage() {
       const token = localStorage.getItem("pixvite_token");
       setIsAuthenticated(Boolean(token));
     }
 
     syncAuthFromLocalStorage();
+    setMounted(true);
     window.addEventListener("storage", syncAuthFromLocalStorage);
+    window.addEventListener("pixvite-auth-change", syncAuthFromLocalStorage);
 
     return () => {
       window.removeEventListener("storage", syncAuthFromLocalStorage);
+      window.removeEventListener("pixvite-auth-change", syncAuthFromLocalStorage);
     };
   }, []);
 
@@ -572,7 +571,7 @@ export function Navbar() {
 
             <div className="flex items-center gap-2 sm:gap-3">
               <div className="hidden items-center gap-4 sm:flex">
-                {isAuthenticated ? (
+                {mounted && (isAuthenticated ? (
                   <>
                     <Link
                       href="/drafts"
@@ -604,7 +603,7 @@ export function Navbar() {
                   >
                     Login
                   </Link>
-                )}
+                ))}
               </div>
 
               <button

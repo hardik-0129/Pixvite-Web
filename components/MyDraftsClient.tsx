@@ -61,10 +61,13 @@ async function fetchTemplateInfo(templateId: string): Promise<{ title: string; t
   return { title: `Template (${templateId})`, thumbnail: "" };
 }
 
+const ITEMS_PER_PAGE = 5;
+
 export function MyDraftsClient() {
   const router = useRouter();
   const [rows, setRows] = useState<DraftRow[]>([]);
   const [busy, setBusy] = useState(true);
+  const [page, setPage] = useState(1);
 
   const load = useCallback(async () => {
     setBusy(true);
@@ -91,9 +94,19 @@ export function MyDraftsClient() {
     void load();
   }, [load]);
 
+  const totalPages = Math.ceil(rows.length / ITEMS_PER_PAGE);
+  const paginatedRows = rows.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
+
   function removeDraft(templateId: string) {
     fetch(`/api/drafts/${encodeURIComponent(templateId)}`, { method: "DELETE" })
-      .then(() => setRows((prev) => prev.filter((r) => r.templateId !== templateId)))
+      .then(() => {
+        setRows((prev) => {
+          const next = prev.filter((r) => r.templateId !== templateId);
+          const maxPage = Math.max(1, Math.ceil(next.length / ITEMS_PER_PAGE));
+          setPage((p) => Math.min(p, maxPage));
+          return next;
+        });
+      })
       .catch(() => {});
   }
 
@@ -129,7 +142,7 @@ export function MyDraftsClient() {
                 <p className="text-right text-xs font-semibold uppercase text-gray-500">Action</p>
               </div>
 
-              {rows.map((row) => (
+              {paginatedRows.map((row) => (
                 <div
                   key={row.templateId}
                   className="grid grid-cols-[minmax(0,2fr)_minmax(0,1fr)_auto] items-center gap-4 border-t border-gray-100 px-6 py-4 transition hover:bg-gray-50"
@@ -171,7 +184,7 @@ export function MyDraftsClient() {
             </div>
 
             <div className="space-y-4 md:hidden">
-              {rows.map((row) => (
+              {paginatedRows.map((row) => (
                 <div key={row.templateId} className="rounded-2xl border border-gray-100 bg-white p-4 shadow-md">
                   <div className="mb-3 min-h-40 shrink-0 overflow-hidden rounded-xl bg-gray-100">
                     {row.thumbnail ? (
@@ -209,6 +222,43 @@ export function MyDraftsClient() {
                 </div>
               ))}
             </div>
+
+            {totalPages > 1 && (
+              <div className="mt-6 flex items-center justify-between gap-3">
+                <button
+                  type="button"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  className="flex items-center gap-1.5 rounded-xl border border-rose-200 bg-white px-4 py-2 text-sm font-semibold text-rose-600 shadow-sm transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  ← Previous
+                </button>
+                <div className="flex items-center gap-1.5">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => setPage(p)}
+                      className={`h-9 w-9 rounded-xl text-sm font-semibold transition ${
+                        p === page
+                          ? "bg-gradient-to-r from-[#FF8FA3] to-[#FF5B5B] text-white shadow-sm"
+                          : "border border-rose-100 bg-white text-slate-600 hover:bg-rose-50"
+                      }`}
+                    >
+                      {p}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages}
+                  className="flex items-center gap-1.5 rounded-xl border border-rose-200 bg-white px-4 py-2 text-sm font-semibold text-rose-600 shadow-sm transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Next →
+                </button>
+              </div>
+            )}
           </>
         )}
 

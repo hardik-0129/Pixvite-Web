@@ -24,6 +24,7 @@ type ProfileUser = {
   email: string;
   phone: string;
   memberSince: string;
+  photoUrl?: string | null;
 };
 
 type ProfileOrder = {
@@ -82,13 +83,18 @@ export function ProfileDetailsClient() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("personal");
+  const [historyPage, setHistoryPage] = useState(1);
   const [editOpen, setEditOpen] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [saving, setSaving] = useState(false);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
+  const [editPhone, setEditPhone] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -116,6 +122,7 @@ export function ProfileDetailsClient() {
         setUser({
           ...u,
           phone: u.phone ?? "",
+          photoUrl: u.photoUrl ?? null,
         });
         setOrders(data.orders || []);
         setFirstName(u.firstName);
@@ -139,11 +146,19 @@ export function ProfileDetailsClient() {
     return `${a} ${b}`.trim();
   }, [user]);
 
+  const ITEMS_PER_PAGE = 3;
+  const totalPages = Math.ceil(orders.length / ITEMS_PER_PAGE);
+  const paginatedOrders = orders.slice(
+    (historyPage - 1) * ITEMS_PER_PAGE,
+    historyPage * ITEMS_PER_PAGE
+  );
+
   function openEdit() {
     if (!user) return;
     setFirstName(user.firstName);
     setLastName(user.lastName);
     setEmail(user.email);
+    setEditPhone(user.phone ?? "");
     setError(null);
     setEditOpen(true);
   }
@@ -155,6 +170,7 @@ export function ProfileDetailsClient() {
       setFirstName(user.firstName);
       setLastName(user.lastName);
       setEmail(user.email);
+      setEditPhone(user.phone ?? "");
     }
   }
 
@@ -169,7 +185,7 @@ export function ProfileDetailsClient() {
         body: JSON.stringify({
           firstName: firstName.trim(),
           lastName: lastName.trim(),
-          email: email.trim().toLowerCase(),
+          phone: editPhone.trim(),
         }),
       });
       const data = (await res.json()) as { ok?: boolean; message?: string; user?: ProfileUser };
@@ -177,7 +193,16 @@ export function ProfileDetailsClient() {
         setError(data.message ?? "Could not save profile.");
         return;
       }
-      setUser({ ...data.user, phone: data.user.phone ?? "" });
+      if (data.user) {
+        setUser((prev) => ({
+          firstName: data.user!.firstName ?? prev?.firstName ?? "",
+          lastName: data.user!.lastName ?? prev?.lastName ?? "",
+          email: data.user!.email ?? prev?.email ?? "",
+          phone: data.user!.phone ?? "",
+          memberSince: data.user!.memberSince ?? prev?.memberSince ?? "",
+          photoUrl: prev?.photoUrl ?? null,
+        }));
+      }
       setEditOpen(false);
     } catch {
       setError("Network error while saving profile.");
@@ -195,31 +220,100 @@ export function ProfileDetailsClient() {
     }
   }
 
-  function onPhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+  async function onPhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
     if (!f) return;
-    if (!/^image\/(png|jpe?g)$/i.test(f.type)) return;
-    if (f.size > 5 * 1024 * 1024) return;
-    setPhotoPreview((prev) => {
-      if (prev?.startsWith("blob:")) URL.revokeObjectURL(prev);
-      return URL.createObjectURL(f);
-    });
+    if (!/^image\/(png|jpe?g)$/i.test(f.type)) {
+      setError("Only PNG or JPG images are supported.");
+      return;
+    }
+    if (f.size > 5 * 1024 * 1024) {
+      setError("Image must be 5 MB or smaller.");
+      return;
+    }
+
+    const blobUrl = URL.createObjectURL(f);
+    setPhotoPreview(blobUrl);
+    setError(null);
+    setUploadingPhoto(true);
+
+    try {
+      const formData = new FormData();
+      formData.append("image", f);
+      const uploadRes = await fetch(withBackendPrefix("/api/upload/image"), {
+        method: "POST",
+        body: formData,
+      });
+      const uploadData = (await uploadRes.json()) as { url?: string; message?: string };
+      if (!uploadRes.ok || !uploadData.url) {
+        setError(uploadData.message ?? "Photo upload failed.");
+        setPhotoPreview(null);
+        URL.revokeObjectURL(blobUrl);
+        return;
+      }
+
+      const patchRes = await fetch(withBackendPrefix("/api/profile"), {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ photoUrl: uploadData.url }),
+      });
+      if (!patchRes.ok) {
+        setError("Could not save photo.");
+        setPhotoPreview(null);
+        URL.revokeObjectURL(blobUrl);
+        return;
+      }
+
+      setUser((prev) => prev ? { ...prev, photoUrl: uploadData.url } : prev);
+      setPhotoPreview(null);
+      URL.revokeObjectURL(blobUrl);
+    } catch {
+      setError("Network error while uploading photo.");
+      setPhotoPreview(null);
+    } finally {
+      setUploadingPhoto(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
   }
 
-  function removePhoto() {
+  async function removePhoto() {
     setPhotoPreview((prev) => {
       if (prev?.startsWith("blob:")) URL.revokeObjectURL(prev);
       return null;
     });
     if (fileInputRef.current) fileInputRef.current.value = "";
+    if (!user?.photoUrl) return;
+
+    try {
+      await fetch(withBackendPrefix("/api/profile"), {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ photoUrl: null }),
+      });
+      setUser((prev) => prev ? { ...prev, photoUrl: null } : prev);
+    } catch {
+      // silently fail
+    }
   }
 
-  function deleteAccountStub() {
-    if (
-      typeof window !== "undefined" &&
-      window.confirm("This will permanently remove your account. Are you sure? (Demo: not implemented yet.)")
-    ) {
-      setError(null);
+  async function handleDeleteAccount() {
+    setDeleting(true);
+    try {
+      await fetch(withBackendPrefix("/api/auth/logout"), { method: "POST" });
+      const res = await fetch(withBackendPrefix("/api/profile"), { method: "DELETE" });
+      if (!res.ok) {
+        const data = (await res.json()) as { message?: string };
+        setError(data.message ?? "Could not delete account.");
+        setDeleteConfirmOpen(false);
+        return;
+      }
+      localStorage.removeItem("pixvite_token");
+      router.push("/");
+    } catch {
+      setError("Network error while deleting account.");
+      setDeleteConfirmOpen(false);
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -240,7 +334,7 @@ export function ProfileDetailsClient() {
   }
 
   const phoneDisplay = user.phone?.trim() ? user.phone : "Add your contact number";
-  const avatarUrl = photoPreview;
+  const avatarUrl = photoPreview ?? user?.photoUrl ?? null;
 
   return (
     <div className="w-full min-h-[calc(100vh-80px)] bg-gradient-to-br from-rose-50 via-white to-rose-100/40 font-body">
@@ -268,7 +362,7 @@ export function ProfileDetailsClient() {
             </button>
             <button
               type="button"
-              onClick={() => setTab("history")}
+              onClick={() => { setTab("history"); setHistoryPage(1); }}
               className={`flex-1 rounded-2xl px-3 py-2.5 text-sm font-semibold transition ${tab === "history"
                 ? "bg-gradient-to-r from-[#FF8FA3] to-[#FF5B5B] text-white shadow-md ring-1 ring-black/10"
                 : "border border-rose-100 bg-white text-slate-600"
@@ -306,7 +400,7 @@ export function ProfileDetailsClient() {
               </button>
               <button
                 type="button"
-                onClick={() => setTab("history")}
+                onClick={() => { setTab("history"); setHistoryPage(1); }}
                 className={`group ${tab === "history" ? navActiveClass : navInactiveClass}`}
                 aria-current={tab === "history" ? "page" : undefined}
               >
@@ -358,7 +452,7 @@ export function ProfileDetailsClient() {
                   type="file"
                   accept=".png,.jpg,.jpeg"
                   className="hidden"
-                  onChange={onPhotoChange}
+                  onChange={(e) => void onPhotoChange(e)}
                 />
 
                 <h2 className="mb-6 font-heading text-2xl font-bold text-slate-800 sm:text-3xl">Personal Info</h2>
@@ -379,17 +473,20 @@ export function ProfileDetailsClient() {
                     <button
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
-                      className="bg_linear w-full rounded-xl px-5 py-2 text-center text-sm font-semibold text-white transition-opacity hover:opacity-95 sm:w-auto"
+                      disabled={uploadingPhoto}
+                      className="bg_linear w-full rounded-xl px-5 py-2 text-center text-sm font-semibold text-white transition-opacity hover:opacity-95 disabled:opacity-60 sm:w-auto"
                     >
-                      Update
+                      {uploadingPhoto ? "Uploading…" : "Update"}
                     </button>
-                    <button
-                      type="button"
-                      onClick={removePhoto}
-                      className="text-sm text-gray-500 transition hover:text-red-500"
-                    >
-                      Remove
-                    </button>
+                    {(avatarUrl) && (
+                      <button
+                        type="button"
+                        onClick={() => void removePhoto()}
+                        className="text-sm text-gray-500 transition hover:text-red-500"
+                      >
+                        Remove
+                      </button>
+                    )}
                   </div>
                 </div>
 
@@ -461,7 +558,7 @@ export function ProfileDetailsClient() {
                   <div className="sm:shrink-0">
                     <button
                       type="button"
-                      onClick={deleteAccountStub}
+                      onClick={() => setDeleteConfirmOpen(true)}
                       className="w-full rounded-xl border border-red-300 px-4 py-2 text-sm font-semibold text-red-600 transition hover:bg-red-100 sm:w-auto"
                     >
                       Delete Account
@@ -483,8 +580,9 @@ export function ProfileDetailsClient() {
                     </Link>
                   </div>
                 ) : (
+                  <>
                   <div className="flex flex-col gap-4">
-                    {orders.map((order) => (
+                    {paginatedOrders.map((order) => (
                       <div
                         key={order.razorpayOrderId}
                         className="flex flex-col gap-4 rounded-3xl border border-rose-100 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between"
@@ -533,6 +631,44 @@ export function ProfileDetailsClient() {
                       </div>
                     ))}
                   </div>
+
+                  {totalPages > 1 && (
+                    <div className="mt-6 flex items-center justify-between gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setHistoryPage((p) => Math.max(1, p - 1))}
+                        disabled={historyPage === 1}
+                        className="flex items-center gap-1.5 rounded-xl border border-rose-200 px-4 py-2 text-sm font-semibold text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        ← Previous
+                      </button>
+                      <div className="flex items-center gap-1.5">
+                        {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                          <button
+                            key={page}
+                            type="button"
+                            onClick={() => setHistoryPage(page)}
+                            className={`h-9 w-9 rounded-xl text-sm font-semibold transition ${
+                              page === historyPage
+                                ? "bg-gradient-to-r from-[#FF8FA3] to-[#FF5B5B] text-white shadow-sm"
+                                : "border border-rose-100 text-slate-600 hover:bg-rose-50"
+                            }`}
+                          >
+                            {page}
+                          </button>
+                        ))}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setHistoryPage((p) => Math.min(totalPages, p + 1))}
+                        disabled={historyPage === totalPages}
+                        className="flex items-center gap-1.5 rounded-xl border border-rose-200 px-4 py-2 text-sm font-semibold text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        Next →
+                      </button>
+                    </div>
+                  )}
+                  </>
                 )}
 
                 <div className={`mt-6 lg:hidden ${cardShell} p-4`}>
@@ -594,17 +730,17 @@ export function ProfileDetailsClient() {
                 </div>
               </div>
               <div>
-                <label htmlFor="profile-email" className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-rose-400">
-                  Email
+                <label htmlFor="profile-phone" className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-rose-400">
+                  Phone Number
                 </label>
                 <input
-                  id="profile-email"
-                  type="email"
+                  id="profile-phone"
+                  type="tel"
                   className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-[15px] outline-none transition focus:border-rose-300 focus:ring-2 focus:ring-rose-200"
-                  required
-                  autoComplete="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  autoComplete="tel"
+                  placeholder="Enter your phone number"
+                  value={editPhone}
+                  onChange={(e) => setEditPhone(e.target.value)}
                 />
               </div>
               <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:justify-end">
@@ -624,6 +760,53 @@ export function ProfileDetailsClient() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      ) : null}
+
+      {deleteConfirmOpen ? (
+        <div
+          className="fixed inset-0 z-[2500] flex items-center justify-center bg-black/45 px-3 py-6 backdrop-blur-[2px]"
+          role="presentation"
+          onClick={() => !deleting && setDeleteConfirmOpen(false)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            className="w-full max-w-md rounded-3xl border border-red-100 bg-white p-6 shadow-2xl sm:p-8"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-100">
+              <Trash2 className="h-6 w-6 text-red-600" aria-hidden />
+            </div>
+            <h3 className="mb-2 font-heading text-xl font-bold text-slate-900">Delete Account</h3>
+            <p className="mb-1 text-sm text-slate-600">
+              This will permanently delete your account and all associated data:
+            </p>
+            <ul className="mb-6 mt-2 list-disc pl-5 text-sm text-slate-600 space-y-1">
+              <li>Your profile and personal information</li>
+              <li>All purchase history and orders</li>
+              <li>All saved drafts</li>
+            </ul>
+            <p className="mb-6 text-sm font-semibold text-red-600">This action cannot be undone.</p>
+            <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                disabled={deleting}
+                className="order-2 rounded-xl border border-gray-200 px-5 py-2.5 font-semibold text-slate-700 transition hover:bg-gray-50 disabled:opacity-50 sm:order-1"
+                onClick={() => setDeleteConfirmOpen(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={deleting}
+                className="order-1 rounded-xl bg-red-600 px-5 py-2.5 font-semibold text-white transition hover:bg-red-700 disabled:opacity-60 sm:order-2"
+                onClick={() => void handleDeleteAccount()}
+              >
+                {deleting ? "Deleting..." : "Yes, Delete My Account"}
+              </button>
+            </div>
           </div>
         </div>
       ) : null}

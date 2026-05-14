@@ -38,6 +38,20 @@ const nextConfig: NextConfig = {
     root: projectRoot,
   },
 
+  async headers() {
+    return [
+      {
+        source: "/(.*)",
+        headers: [
+          {
+            key: "Cross-Origin-Opener-Policy",
+            value: "same-origin-allow-popups",
+          },
+        ],
+      },
+    ];
+  },
+
   // Proxy /template-assets/* to the admin server so the browser sees same-origin
   // URLs (avoids CORS on fetch() for Lottie JSON, audio, etc.).
   async rewrites() {
