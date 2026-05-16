@@ -2,7 +2,7 @@
  * One-time script to create the initial admin user in MongoDB.
  * Usage: node scripts/seed-admin.mjs
  *
- * Reads MONGODB_URI from .env.local automatically.
+ * Reads MONGODB_URI from .env automatically.
  * Edit EMAIL, PASSWORD, FIRST_NAME, LAST_NAME below before running.
  */
 
@@ -21,10 +21,10 @@ const LAST_NAME = "User";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-// Load .env.local
+// Load .env
 function loadEnv() {
   try {
-    const envPath = resolve(__dirname, "../.env.local");
+    const envPath = resolve(__dirname, "../.env");
     const lines = readFileSync(envPath, "utf8").split("\n");
     for (const line of lines) {
       const trimmed = line.trim();
@@ -36,7 +36,7 @@ function loadEnv() {
       if (!process.env[key]) process.env[key] = val;
     }
   } catch {
-    // ignore missing .env.local
+    // ignore missing .env
   }
 }
 
@@ -54,7 +54,7 @@ async function main() {
 
   const uri = process.env.MONGODB_URI;
   if (!uri) {
-    console.error("MONGODB_URI not found. Make sure .env.local exists.");
+    console.error("MONGODB_URI not found. Make sure .env exists.");
     process.exit(1);
   }
 

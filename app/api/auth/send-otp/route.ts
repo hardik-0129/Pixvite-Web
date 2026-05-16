@@ -34,7 +34,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         ok: false,
-        message: "SMTP is not configured. Please set SMTP_* values in .env.local.",
+        message: "SMTP is not configured. Please set SMTP_* values in .env.",
       },
       { status: 500 }
     );
