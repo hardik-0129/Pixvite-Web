@@ -155,32 +155,47 @@ function mapDoc(doc: TemplateDoc): Template {
 }
 
 export async function listTemplates(): Promise<Template[]> {
-  const db = await getDb();
-  const docs = (await db
-    .collection<TemplateDoc>(TEMPLATES_COLLECTION)
-    .find({ status: { $ne: "draft" } })
-    .sort({ createdAt: -1 })
-    .toArray()) as TemplateDoc[];
-  return docs.map(mapDoc);
+  try {
+    const db = await getDb();
+    const docs = (await db
+      .collection<TemplateDoc>(TEMPLATES_COLLECTION)
+      .find({ status: { $ne: "draft" } })
+      .sort({ createdAt: -1 })
+      .toArray()) as TemplateDoc[];
+    return docs.map(mapDoc);
+  } catch (err) {
+    console.error("[template-store] listTemplates:", err);
+    return [];
+  }
 }
 
 export async function getTemplateById(id: string): Promise<Template | null> {
-  const db = await getDb();
-  const doc = (await db.collection<TemplateDoc>(TEMPLATES_COLLECTION).findOne({ templateId: id })) as TemplateDoc | null;
-  if (!doc) return null;
-  return mapDoc(doc);
+  try {
+    const db = await getDb();
+    const doc = (await db.collection<TemplateDoc>(TEMPLATES_COLLECTION).findOne({ templateId: id })) as TemplateDoc | null;
+    if (!doc) return null;
+    return mapDoc(doc);
+  } catch (err) {
+    console.error("[template-store] getTemplateById:", err);
+    return null;
+  }
 }
 
 export async function listSidebarCategories(): Promise<SidebarCategory[]> {
-  const db = await getDb();
-  const docs = (await db
-    .collection<CategoryDoc>(CATEGORIES_COLLECTION)
-    .find({})
-    .sort({ sortOrder: 1, name: 1 })
-    .toArray()) as CategoryDoc[];
+  try {
+    const db = await getDb();
+    const docs = (await db
+      .collection<CategoryDoc>(CATEGORIES_COLLECTION)
+      .find({})
+      .sort({ sortOrder: 1, name: 1 })
+      .toArray()) as CategoryDoc[];
 
-  return docs.map((d) => ({
-    name: d.name,
-    subs: Array.isArray(d.subs) ? d.subs : [],
-  }));
+    return docs.map((d) => ({
+      name: d.name,
+      subs: Array.isArray(d.subs) ? d.subs : [],
+    }));
+  } catch (err) {
+    console.error("[template-store] listSidebarCategories:", err);
+    return [];
+  }
 }

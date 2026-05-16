@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { notFound } from "next/navigation";
 import { TemplateDetailForm } from "@/components/TemplateDetailForm";
 import { getTemplateById } from "@/lib/template-store";

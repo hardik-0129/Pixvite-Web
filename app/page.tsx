@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import Link from "next/link";
 import { FAQAccordion } from "@/components/FAQAccordion";
 import { HowItWorksSection } from "@/components/HowItWorksSection";

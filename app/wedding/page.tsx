@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { TemplatesView } from "@/components/TemplatesView";
 import { listSidebarCategories, listTemplates } from "@/lib/template-store";
 

@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { Suspense } from "react";
 import { TemplatesWithSearchParams } from "./TemplatesWithSearchParams";
 import { listSidebarCategories, listTemplates } from "@/lib/template-store";
