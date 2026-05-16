@@ -41,7 +41,16 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# generated uploads and render output (local runtime assets)
-/public/uploads/
-/public/videos/
-/render-server/order-renders/
+# User uploads & render output (never commit — survives git pull on VPS)
+/public/uploads/*
+!/public/uploads/.gitkeep
+!/public/uploads/images/
+/public/uploads/images/*
+!/public/uploads/images/.gitkeep
+!/public/uploads/audio/
+/public/uploads/audio/*
+!/public/uploads/audio/.gitkeep
+/public/videos/*
+!/public/videos/.gitkeep
+/render-server/order-renders/*
+!/render-server/order-renders/.gitkeep
