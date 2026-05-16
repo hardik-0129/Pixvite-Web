@@ -40,3 +40,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# generated uploads and render output (local runtime assets)
+/public/uploads/
+/public/videos/
+/render-server/order-renders/
