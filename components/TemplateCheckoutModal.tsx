@@ -434,6 +434,9 @@ export function TemplateCheckoutModal({ open, onClose, template, fieldValues, cu
                   }}
                 />
                 <button
+                style={{
+                background: "#e85025", color: "#fff"
+              }}
                   type="button"
                   disabled={!coupon.trim() || couponApplying}
                   className="rounded-lg bg-[var(--brand-end)] px-3 py-2 text-xs font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 xs:rounded-md xs:px-4 xs:py-2.5 xs:text-sm sm:px-5"
@@ -507,7 +510,7 @@ export function TemplateCheckoutModal({ open, onClose, template, fieldValues, cu
               disabled={checkoutInProgress || paymentSuccess}
               className="flex-1 rounded-lg py-2.5 text-sm font-semibold text-white shadow-md transition hover:opacity-95 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60 xs:rounded-md xs:py-3 xs:text-base"
               style={{
-                background: "linear-gradient(135deg, var(--brand-start), var(--brand-end))",
+                background: "#e85025", color: "#fff"
               }}
               onClick={handlePaySecurely}
             >

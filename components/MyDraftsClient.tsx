@@ -241,7 +241,7 @@ export function MyDraftsClient() {
                       onClick={() => setPage(p)}
                       className={`h-9 w-9 rounded-xl text-sm font-semibold transition ${
                         p === page
-                          ? "bg-gradient-to-r from-[#FF8FA3] to-[#FF5B5B] text-white shadow-sm"
+                          ? "bg-[#e85025] !text-white shadow-sm"
                           : "border border-rose-100 bg-white text-slate-600 hover:bg-rose-50"
                       }`}
                     >

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Plus_Jakarta_Sans, Space_Grotesk } from "next/font/google";
+import { Toaster } from "sonner";
 import { AnnouncementBar } from "@/components/AnnouncementBar";
 import { Footer } from "@/components/Footer";
 import { Navbar } from "@/components/Navbar";
@@ -38,6 +39,17 @@ export default function RootLayout({
         </header>
         <main className="flex-1">{children}</main>
         <Footer />
+        <Toaster
+          position="top-center"
+          offset={46}
+          toastOptions={{
+            style: {
+              background: "#000",
+              color: "#fff",
+              border: "none",
+            },
+          }}
+        />
       </body>
     </html>
   );

@@ -37,7 +37,7 @@ type ProfileOrder = {
 };
 
 const navActiveClass =
-  "w-full flex items-center justify-between p-3 rounded-2xl transition-all duration-300 bg-gradient-to-r from-[#FF8FA3] to-[#FF5B5B] text-white shadow-lg shadow-rose-300/40 ring-1 ring-black/10";
+  "w-full flex items-center justify-between p-3 rounded-2xl transition-all duration-300 bg-[#e85025] !text-white [&_*]:!text-white shadow-lg ring-1 ring-black/10";
 const navInactiveClass =
   "w-full flex items-center justify-between p-3 rounded-2xl transition-all duration-300 text-slate-600 hover:bg-rose-50/90";
 
@@ -354,7 +354,7 @@ export function ProfileDetailsClient() {
               type="button"
               onClick={() => setTab("personal")}
               className={`flex-1 rounded-2xl px-3 py-2.5 text-sm font-semibold transition ${tab === "personal"
-                ? "bg-gradient-to-r from-[#FF8FA3] to-[#FF5B5B] text-white shadow-md ring-1 ring-black/10"
+                ? "bg-[#e85025] text-white shadow-md ring-1 ring-black/10"
                 : "border border-rose-100 bg-white text-slate-600"
                 }`}
             >
@@ -364,7 +364,7 @@ export function ProfileDetailsClient() {
               type="button"
               onClick={() => { setTab("history"); setHistoryPage(1); }}
               className={`flex-1 rounded-2xl px-3 py-2.5 text-sm font-semibold transition ${tab === "history"
-                ? "bg-gradient-to-r from-[#FF8FA3] to-[#FF5B5B] text-white shadow-md ring-1 ring-black/10"
+                ? "bg-[#e85025] text-white shadow-md ring-1 ring-black/10"
                 : "border border-rose-100 bg-white text-slate-600"
                 }`}
             >
@@ -391,7 +391,7 @@ export function ProfileDetailsClient() {
                 aria-current={tab === "personal" ? "page" : undefined}
               >
                 <div className="flex items-center gap-3">
-                  <span className={`flex items-center justify-center rounded-xl p-2 ${tab === "personal" ? "bg-white/20" : "bg-rose-50 text-[#FF5B5B] group-hover:bg-white group-hover:shadow-sm"}`}>
+                  <span className={`flex items-center justify-center rounded-xl p-2 ${tab === "personal" ? "bg-white/20" : "bg-rose-50 text-[#e85025] group-hover:bg-white group-hover:shadow-sm"}`}>
                     <User className="h-5 w-5" aria-hidden />
                   </span>
                   <span className="text-[15px] font-semibold">Personal Info</span>
@@ -405,7 +405,7 @@ export function ProfileDetailsClient() {
                 aria-current={tab === "history" ? "page" : undefined}
               >
                 <div className="flex items-center gap-3">
-                  <span className={`flex items-center justify-center rounded-xl p-2 ${tab === "history" ? "bg-white/20" : "bg-rose-50 text-[#FF5B5B] group-hover:bg-white group-hover:shadow-sm"}`}>
+                  <span className={`flex items-center justify-center rounded-xl p-2 ${tab === "history" ? "bg-white/20" : "bg-rose-50 text-[#e85025] group-hover:bg-white group-hover:shadow-sm"}`}>
                     <History className="h-5 w-5" aria-hidden />
                   </span>
                   <span className="text-[15px] font-semibold">Purchase History</span>
@@ -427,7 +427,7 @@ export function ProfileDetailsClient() {
                 </p>
                 <Link
                   href="/contact"
-                  className="w-full rounded-2xl border border-rose-200 py-3 text-center font-semibold text-rose-700 transition hover:bg-rose-50"
+                  className="w-full rounded-2xl border border-rose-200 py-3 text-center font-semibold text-[#e85025] transition hover:bg-rose-50"
                 >
                   Contact Support
                 </Link>
@@ -437,7 +437,7 @@ export function ProfileDetailsClient() {
             <button
               type="button"
               onClick={() => void signOut()}
-              className="group flex items-center gap-3 px-2 text-slate-400 transition hover:text-rose-700"
+              className="group flex items-center gap-3 px-2 text-slate-400 transition hover:text-[#e85025]"
             >
               <LogOut className="h-5 w-5 transition group-hover:rotate-6" aria-hidden />
               <span className="text-[15px] font-semibold">Sign Out</span>
@@ -504,7 +504,7 @@ export function ProfileDetailsClient() {
                         type="button"
                         onClick={openEdit}
                         aria-label="Edit name"
-                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-600 opacity-0 transition hover:bg-rose-100 hover:text-rose-700 group-hover:opacity-100"
+                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-600 opacity-0 transition hover:bg-rose-100 hover:text-[#e85025] group-hover:opacity-100"
                       >
                         <Pencil className="h-4 w-4" />
                       </button>
@@ -525,7 +525,7 @@ export function ProfileDetailsClient() {
                         type="button"
                         onClick={openEdit}
                         aria-label="Edit profile"
-                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-600 opacity-0 transition hover:bg-rose-100 hover:text-rose-700 group-hover:opacity-100"
+                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-600 opacity-0 transition hover:bg-rose-100 hover:text-[#e85025] group-hover:opacity-100"
                       >
                         <Pencil className="h-4 w-4" />
                       </button>
@@ -599,7 +599,7 @@ export function ProfileDetailsClient() {
                           )}
                         </div>
                         <div className="flex items-center justify-between gap-3 sm:flex-col sm:items-end sm:gap-2">
-                          <p className="text-lg font-bold text-emerald-600">
+                          <p className="text-lg font-bold text-black">
                             ₹{order.totalInr}
                           </p>
                           <div className="flex flex-wrap items-center gap-2">
@@ -607,7 +607,7 @@ export function ProfileDetailsClient() {
                               <a
                                 href={`/api/orders/${encodeURIComponent(order.razorpayOrderId)}/video`}
                                 download
-                                className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700"
+                                className="rounded-xl bg-[#e85025] px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
                               >
                                 Download Video
                               </a>
@@ -622,7 +622,7 @@ export function ProfileDetailsClient() {
                             ) : null}
                             <Link
                               href={`/templates/${order.templateId}`}
-                              className="rounded-xl border border-rose-200 px-4 py-2 text-sm font-semibold text-rose-600 transition hover:bg-rose-50"
+                              className="rounded-xl border border-[#e85025] px-4 py-2 text-sm font-semibold text-[#e85025] transition hover:bg-[#e85025]/5"
                             >
                               Use Template
                             </Link>
@@ -650,7 +650,7 @@ export function ProfileDetailsClient() {
                             onClick={() => setHistoryPage(page)}
                             className={`h-9 w-9 rounded-xl text-sm font-semibold transition ${
                               page === historyPage
-                                ? "bg-gradient-to-r from-[#FF8FA3] to-[#FF5B5B] text-white shadow-sm"
+                                ? "bg-[#e85025] !text-white shadow-sm"
                                 : "border border-rose-100 text-slate-600 hover:bg-rose-50"
                             }`}
                           >
@@ -672,7 +672,7 @@ export function ProfileDetailsClient() {
                 )}
 
                 <div className={`mt-6 lg:hidden ${cardShell} p-4`}>
-                  <button type="button" onClick={() => void signOut()} className="flex w-full items-center justify-center gap-2 text-slate-500 hover:text-rose-700">
+                  <button type="button" onClick={() => void signOut()} className="flex w-full items-center justify-center gap-2 text-slate-500 hover:text-[#e85025]">
                     <LogOut className="h-5 w-5" />
                     <span className="font-semibold">Sign Out</span>
                   </button>

@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Template } from "@/lib/templates";
 import { isFormFieldEnabled } from "@/lib/templates";
 import { withBackendPrefix } from "@/lib/backend-url";
+import { toast } from "sonner";
 import { InstagramSupportLink } from "./InstagramSupportLink";
 import { TemplateCheckoutModal } from "./TemplateCheckoutModal";
 import { TemplateEditorPreview } from "./TemplateEditorPreview";
@@ -109,7 +110,6 @@ export function TemplateDetailForm({ template }: Props) {
   }, [template.formFields]);
 
   const [values, setValues] = useState<Record<string, string>>(initial);
-  const [draftMessage, setDraftMessage] = useState<string>("");
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [prefillProfile, setPrefillProfile] = useState<{ firstName?: string; lastName?: string; email?: string; phone?: string } | undefined>(undefined);
@@ -172,7 +172,7 @@ export function TemplateDetailForm({ template }: Props) {
         });
         if (!cancelled) {
           setValues((prev) => ({ ...prev, ...next }));
-          setDraftMessage("Loaded saved draft");
+          toast.success("Loaded saved draft");
         }
       } catch {
         if (!cancelled) setIsAuthenticated(false);
@@ -266,11 +266,6 @@ export function TemplateDetailForm({ template }: Props) {
     };
   }, [renderOrderId, renderDone, renderError]);
 
-  useEffect(() => {
-    if (!draftMessage) return;
-    const id = window.setTimeout(() => setDraftMessage(""), 1800);
-    return () => window.clearTimeout(id);
-  }, [draftMessage]);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -286,7 +281,7 @@ export function TemplateDetailForm({ template }: Props) {
 
   const onResetDefaults = () => {
     setValues(initial);
-    setDraftMessage("Reset to default");
+    toast.success("Reset to default");
     if (isAuthenticated) {
       fetch(`/api/drafts/${encodeURIComponent(template.id)}`, { method: "DELETE" }).catch(() => {});
     }
@@ -302,8 +297,8 @@ export function TemplateDetailForm({ template }: Props) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ templateId: template.id, values }),
     })
-      .then((res) => setDraftMessage(res.ok ? "Draft saved" : "Could not save draft"))
-      .catch(() => setDraftMessage("Could not save draft"));
+      .then((res) => { if (res.ok) toast.success("Draft saved successfully."); else toast.error("Could not save draft"); })
+      .catch(() => toast.error("Could not save draft"));
   };
 
   const handlePaymentVerified = useCallback(
@@ -352,7 +347,7 @@ export function TemplateDetailForm({ template }: Props) {
       const res = await fetch("/api/upload/audio", { method: "POST", body: fd });
       if (!res.ok) {
         const err = (await res.json().catch(() => ({}))) as { message?: string };
-        setDraftMessage(err.message ?? "Audio upload failed.");
+        toast.error(err.message ?? "Audio upload failed.");
         URL.revokeObjectURL(blob);
         audioBlobRef.current = null;
         setAudioBlobUrl(null);
@@ -362,7 +357,7 @@ export function TemplateDetailForm({ template }: Props) {
       const data = (await res.json()) as { url: string };
       setCustomAudioUrl(data.url);
     } catch {
-      setDraftMessage("Audio upload failed.");
+      toast.error("Audio upload failed.");
       URL.revokeObjectURL(blob);
       audioBlobRef.current = null;
       setAudioBlobUrl(null);
@@ -378,7 +373,7 @@ export function TemplateDetailForm({ template }: Props) {
       navigator.share({ title: template.title, url: window.location.href }).catch(() => {});
     } else if (typeof navigator !== "undefined") {
       navigator.clipboard.writeText(window.location.href).catch(() => {});
-      setDraftMessage("Link copied!");
+      toast.success("Link copied!");
     }
   };
 
@@ -625,12 +620,6 @@ export function TemplateDetailForm({ template }: Props) {
               )}
             </div>
 
-            {/* Draft message */}
-            {draftMessage ? (
-              <div className="px-5">
-                <p className="text-center text-xs font-medium text-[var(--text-secondary)]">{draftMessage}</p>
-              </div>
-            ) : null}
 
             {/* Render progress panel — only show once polling has returned data or render is complete/errored */}
             {renderOrderId && (renderDone || !!renderError || renderProgress !== null) ? (
