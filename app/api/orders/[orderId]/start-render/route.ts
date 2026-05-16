@@ -17,7 +17,7 @@ function getAppOrigin(request: Request): string {
 export async function POST(request: Request, ctx: RouteContext) {
   const { orderId } = await ctx.params;
 
-  const renderServerUrl = (process.env.NEXT_PUBLIC_LOTTIE_RENDER_SERVER_URL || "").trim();
+  const renderServerUrl = (process.env.NEXT_PUBLIC_LOTTIE_RENDER_SERVER_URL || "").trim().replace(/\/+$/, "");
   if (!renderServerUrl) {
     return NextResponse.json({ message: "Render server not configured." }, { status: 503 });
   }

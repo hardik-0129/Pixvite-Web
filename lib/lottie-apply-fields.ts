@@ -316,6 +316,18 @@ function collectTextLeafPaths(node: unknown, current = ""): string[] {
   return out;
 }
 
+/**
+ * Derive a usable JSON text path from legacy sourcePath formats written by
+ * older versions of extractLottieEditableFields.
+ *   "layers[N].text"  →  "layers[N].t.d.k[0].s.t"
+ * Returns null when the format is not recognised.
+ */
+function deriveLegacyTextPath(sourcePath: string): string | null {
+  const m = sourcePath.match(/^((?:layers|assets\[\d+\]\.layers)\[\d+\])\.text$/);
+  if (m) return `${m[1]}.t.d.k[0].s.t`;
+  return null;
+}
+
 export function applyFieldValuesToLottie(
   baseData: unknown,
   formFields: FormField[] | undefined,
@@ -323,21 +335,53 @@ export function applyFieldValuesToLottie(
 ): unknown {
   if (!baseData || typeof baseData !== "object" || !formFields || !values) return baseData;
   const next = deepClone(baseData) as Record<string, unknown>;
+  // Remove embedded glyph outlines so lottie-web falls back to the system
+  // font for rendering. Without this, only the characters whose vector paths
+  // were baked into the Lottie export (the `chars` array) can be rendered,
+  // which means any character not in that set is invisible when typed.
+  if (Array.isArray(next.chars) && next.chars.length > 0) {
+    next.chars = [];
+  }
   applyImageFieldValuesToLottie(next, formFields, values);
-  const textPaths = collectTextLeafPaths(next);
-  const fallbackPathByField = new Map<string, string>();
 
-  formFields.forEach((f) => {
-    if ((f.type ?? "text") === "image") return;
-    const defaultValue = String(f.defaultValue ?? "");
-    if (!defaultValue) return;
-    const matches = textPaths.filter((p) => {
-      const cur = getByPath(next, p);
-      return typeof cur === "string" && normalizeTextForCompare(cur) === normalizeTextForCompare(defaultValue);
-    });
-    if (matches.length === 1) fallbackPathByField.set(f.name, matches[0]);
+  // ── Value-matching fallback ──────────────────────────────────────────────
+  // Collect every text path in the Lottie (in traversal order, which matches
+  // the order fields were extracted). Then for each unique default-value
+  // group, assign text paths to form fields POSITIONALLY so that non-unique
+  // values like "&" (appearing multiple times) still map correctly.
+  const textPaths = collectTextLeafPaths(next);
+
+  // Build a map: normalizedDefaultValue → ordered list of matching text paths
+  const pathsByNormDv = new Map<string, string[]>();
+  textPaths.forEach((p) => {
+    const cur = getByPath(next, p);
+    if (typeof cur !== "string") return;
+    const key = normalizeTextForCompare(cur);
+    if (!key) return;
+    const arr = pathsByNormDv.get(key) ?? [];
+    arr.push(p);
+    pathsByNormDv.set(key, arr);
   });
 
+  // Track how many times we've claimed a path for each defaultValue bucket.
+  const dvPickCursor = new Map<string, number>();
+
+  // For each text formField, derive the fallback path using positional pick.
+  const fallbackPathByField = new Map<string, string>();
+  formFields.forEach((f) => {
+    if ((f.type ?? "text") === "image") return;
+    const dv = normalizeTextForCompare(String(f.defaultValue ?? ""));
+    if (!dv) return;
+    const paths = pathsByNormDv.get(dv);
+    if (!paths || paths.length === 0) return;
+    const cursor = dvPickCursor.get(dv) ?? 0;
+    if (cursor < paths.length) {
+      fallbackPathByField.set(f.name, paths[cursor]);
+      dvPickCursor.set(dv, cursor + 1);
+    }
+  });
+
+  // ── Apply each changed field ─────────────────────────────────────────────
   formFields.forEach((f) => {
     if ((f.type ?? "text") === "image") return;
     const nextValue = values[f.name];
@@ -346,9 +390,20 @@ export function applyFieldValuesToLottie(
     const defaultValue = String(f.defaultValue ?? "");
     if (normalizeTextForCompare(nextValue) === normalizeTextForCompare(defaultValue)) return;
     const lottieValue = toLottieTextValue(nextValue);
+
+    // 1. Direct path — correct format: sourcePath ends with .t.d.k[N].s.t
     if (f.sourcePath?.includes(".t.d.k[0].s.t") && setAllTextKeyframesBySourcePath(next, f.sourcePath, lottieValue)) {
       return;
     }
+
+    // 2. Legacy backward-compat — old format: "layers[N].text" / "assets[X].layers[N].text"
+    const legacyPath = deriveLegacyTextPath(f.sourcePath ?? "");
+    if (legacyPath && setAllTextKeyframesByLeafPath(next, legacyPath, lottieValue)) {
+      return;
+    }
+
+    // 3. Positional value-matching fallback — works for any sourcePath format,
+    //    including non-unique values like "&" through group-positional assignment.
     const fallbackPath = fallbackPathByField.get(f.name);
     if (fallbackPath && setAllTextKeyframesByLeafPath(next, fallbackPath, lottieValue)) {
       return;

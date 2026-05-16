@@ -54,7 +54,7 @@ const marqueeRowReverse: { label: string; color: string }[] = [
   { label: "Siya Mangal", color: "#ff7043" },
   { label: "Spiritual", color: "#10ac84" },
   { label: "Ayodhya", color: "#d500f9" },
-  { label: "Ram Mandir", color: "#ff6b6b" },
+  { label: "Ram Mandir", color: "#e85025" },
   { label: "Vivaah Mahotsav", color: "#ff9fdb" },
   { label: "Raas Utsav", color: "#00d2d3" },
   { label: "Mandapam Muhrat", color: "#fff59d" },

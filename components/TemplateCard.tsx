@@ -9,13 +9,22 @@ type Props = {
   template: Template;
 };
 
-function MuteIcon() {
+function MutedIcon() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="h-5 w-5 text-white" fill="currentColor" aria-hidden>
+      <path d="M5 9v6h4l5 5V4L9 9H5z" />
+      <line x1="23" y1="9" x2="17" y2="15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <line x1="17" y1="9" x2="23" y2="15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function UnmutedIcon() {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="h-5 w-5 text-white" fill="currentColor" aria-hidden>
       <path d="M5 9v6h4l5 5V4L9 9H5z" />
       <path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v8.06c1.48-.74 2.5-2.26 2.5-4.03z" />
       <path d="M14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z" />
-      <path d="M4 4l16 16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
     </svg>
   );
 }
@@ -44,6 +53,7 @@ export function TemplateCard({ template }: Props) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [hoverPreview, setHoverPreview] = useState(false);
   const [videoReady, setVideoReady] = useState(false);
+  const [isMuted, setIsMuted] = useState(true);
   const [thumbSrc, setThumbSrc] = useState(thumbnail || fallbackThumb);
 
   useEffect(() => {
@@ -70,6 +80,18 @@ export function TemplateCard({ template }: Props) {
     setVideoReady(true);
     const v = videoRef.current;
     if (v) void v.play().catch(() => {});
+  }, []);
+
+  const handleMuteToggle = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const v = videoRef.current;
+    if (v) {
+      v.muted = !v.muted;
+      setIsMuted(v.muted);
+    } else {
+      setIsMuted((prev) => !prev);
+    }
   }, []);
 
   const showHoverSpinner = Boolean(previewVideoUrl && hoverPreview && !videoReady);
@@ -100,7 +122,7 @@ export function TemplateCard({ template }: Props) {
           className={`absolute inset-0 z-0 h-full w-full object-cover transition-opacity duration-300 ${
             videoReady ? "opacity-100" : "opacity-0"
           }`}
-          muted
+          muted={isMuted}
           playsInline
           loop
           preload="auto"
@@ -111,13 +133,15 @@ export function TemplateCard({ template }: Props) {
 
       {showHoverSpinner ? <HoverPreviewSpinner /> : null}
 
-      <div
+      <button
+        type="button"
+        onClick={handleMuteToggle}
         className="absolute left-2 top-2 z-40 flex h-10 w-10 items-center justify-center rounded-full border border-white/20 shadow-lg transition-all duration-200 group-hover:scale-110 active:scale-95 sm:left-2 sm:top-2"
         style={{ background: "rgba(0,0,0,0.45)" }}
-        aria-hidden
+        aria-label={isMuted ? "Unmute" : "Mute"}
       >
-        <MuteIcon />
-      </div>
+        {isMuted ? <MutedIcon /> : <UnmutedIcon />}
+      </button>
 
       <div
         className="absolute right-2 top-2 z-20 max-w-[50%] truncate rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-[var(--accent-foreground)] shadow-md backdrop-blur-sm sm:right-3 sm:top-3 sm:max-w-[60%] sm:px-2.5 sm:text-xs md:px-3 md:py-1.5"

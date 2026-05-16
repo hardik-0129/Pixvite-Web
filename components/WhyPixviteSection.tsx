@@ -12,7 +12,7 @@ function IconBadge({
     <div
       className={`mx-auto flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-white shadow-sm ${className ?? ""}`}
       style={{
-        background: "linear-gradient(180deg, #ff9068 0%, #ff4b2b 100%)",
+        background: "#e85025",
       }}
     >
       {children}
@@ -134,7 +134,7 @@ export function WhyPixviteSection() {
       <div className="mx-auto max-w-[1400px] px-4 lg:px-6">
         <h2 className={`text-center leading-tight tracking-tight ${sectionHeading}`}>
           <span className="text-[var(--text-primary)]">Why </span>
-          <span style={{ color: "#ff5a5f" }}>Pixvite</span>
+          <span style={{ color: "#e85025" }}>Pixvite</span>
         </h2>
 
         <div className="mt-12 hidden md:flex md:flex-col md:items-center">

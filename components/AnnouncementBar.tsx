@@ -9,7 +9,7 @@ export function AnnouncementBar() {
     <div
       className="flex h-9 w-full shrink-0 items-center justify-center px-3 text-center text-[13px] font-medium text-white"
       style={{
-        background: "linear-gradient(90deg, var(--brand-start), var(--brand-end))",
+        background: "#e85025",
       }}
     >
       50% off &nbsp;•&nbsp; Limited Time Offer &nbsp;•&nbsp; Ends in{" "}

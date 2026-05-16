@@ -6,7 +6,7 @@ function FooterBrandLogo() {
       <span
         className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-full shadow-sm"
         style={{
-          background: "linear-gradient(145deg, #ff8a50 0%, #ff6b4a 45%, #ff5722 100%)",
+          background: "#e85025",
         }}
       >
         <svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden className="text-white">
@@ -115,7 +115,7 @@ export function Footer() {
               href="/contact"
               className="mt-4 flex w-full items-center justify-center rounded-full px-5 py-3 text-center text-[14px] font-semibold text-white shadow-sm transition hover:brightness-[1.03]"
               style={{
-                background: "linear-gradient(90deg, #ff7043 0%, #ff4081 52%, #ab47bc 100%)",
+                background: "#e85025",
               }}
             >
               Customer Support

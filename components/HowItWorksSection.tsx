@@ -35,7 +35,7 @@ export function HowItWorksSection() {
       <div className="mx-auto max-w-[1400px] px-4 lg:px-6">
         <h2 className={`text-center leading-tight tracking-tight ${sectionHeading}`}>
           <span className="text-[var(--text-primary)]">Create Your Invite in </span>
-          <span className="text-[#ff5e62]">3 Simple Steps</span>
+          <span className="text-[#e85025]">3 Simple Steps</span>
         </h2>
         <div className="mt-12 grid gap-12 sm:mt-14 md:grid-cols-3 md:gap-10 lg:gap-14">
           {steps.map(({ title, description, image, alt }, i) => (

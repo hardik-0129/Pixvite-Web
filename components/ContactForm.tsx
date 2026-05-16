@@ -117,7 +117,7 @@ export function ContactForm() {
       <button
         type="submit"
         className="w-full rounded-lg px-6 py-3 font-semibold text-white transition-all duration-200 hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-        style={{ background: "linear-gradient(90deg, var(--brand-start), var(--brand-end))" }}
+        style={{ background: "#e85025", color: "#fff" }}
       >
         Send Message
       </button>

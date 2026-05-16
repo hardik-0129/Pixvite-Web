@@ -4,8 +4,8 @@
   --brand-primary: #ff6b4a;
   --brand-primary-hover: #e85c3c;
   --brand-secondary: #ff8c69;
-  --brand-gradient-start: #ff7043;
-  --brand-gradient-end: #ff4081;
+  --brand-gradient-start: #e85025;
+  --brand-gradient-end: #e85025;
   --brand-accent: #fff3e0;
   --price-badge-bg: #ff3d3d;
   --category-badge-bg: #ff6b4a;
@@ -39,7 +39,7 @@
   --font-body: var(--font-plus-jakarta), system-ui, sans-serif;
   --background: #fafafa;
   /* Brand accent — used by var(--accent) and Tailwind text-accent / bg-accent */
-  --accent: #d32f2f;
+  --accent: #e85025;
   --accent-foreground: #ffffff;
   --shadow-brand-glow: 0 4px 24px rgba(255, 112, 67, 0.38);
 }
@@ -57,19 +57,13 @@
   border: 0;
   color: #fff !important;
   -webkit-text-fill-color: #fff !important;
-  background-image: linear-gradient(
-    90deg,
-    #ff9ad4 0%,
-    #ff6bb3 28%,
-    #ff3d7a 65%,
-    #e91e63 100%
-  );
-  box-shadow: 0 3px 14px rgba(233, 30, 99, 0.35);
+  background : #e85025 !important;
+  box-shadow: 0 3px 14px rgba(232, 80, 37, 0.35);
 }
 
 .bg_linear:hover:not(:disabled) {
   filter: brightness(1.03);
-  box-shadow: 0 4px 18px rgba(233, 30, 99, 0.42);
+  box-shadow: 0 4px 18px rgba(232, 80, 37, 0.42);
 }
 
 .bg_linear:active:not(:disabled) {

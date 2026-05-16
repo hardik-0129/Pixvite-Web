@@ -440,7 +440,7 @@ export function TemplateDetailForm({ template }: Props) {
               <div className="flex items-center gap-2 shrink-0">
                 <span
                   className="font-body inline-flex items-center rounded-full px-3 py-1 text-sm font-bold text-white"
-                  style={{ background: "linear-gradient(135deg, #ff7043, #ff4081)" }}
+                  style={{ background: "#e85025" }}
                 >
                   ₹{template.price}
                 </span>
@@ -468,7 +468,7 @@ export function TemplateDetailForm({ template }: Props) {
                   }`}
                   style={
                     activeTab === "text"
-                      ? { background: "linear-gradient(135deg, #ff7043, #ff4081)" }
+                      ? { background: "#e85025", color: "white" }
                       : {}
                   }
                 >
@@ -490,7 +490,7 @@ export function TemplateDetailForm({ template }: Props) {
                     }`}
                     style={
                       activeTab === "image"
-                        ? { background: "linear-gradient(135deg, #ff7043, #ff4081)" }
+                        ? { background: "#e85025", color: "white" }
                         : {}
                     }
                   >
@@ -705,8 +705,8 @@ export function TemplateDetailForm({ template }: Props) {
               <button
                 type="button"
                 onClick={() => setCheckoutOpen(true)}
-                className="font-body flex-[2] inline-flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold text-white shadow-md transition hover:opacity-95 hover:shadow-lg"
-                style={{ background: "linear-gradient(135deg, #ff7043, #ff4081)" }}
+                className="font-body text-white flex-[2] inline-flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold text-white shadow-md transition hover:opacity-95 hover:shadow-lg"
+                style={{ background: "#e85025", color: "white" }}
               >
                 <DownloadIcon />
                 Download HD Video

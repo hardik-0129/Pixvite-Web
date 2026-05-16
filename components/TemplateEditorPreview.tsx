@@ -121,6 +121,7 @@ export function TemplateEditorPreview({
   lottiePreviewUrl,
 }: Props) {
   const [playing, setPlaying] = useState(false);
+  const [isMuted, setIsMuted] = useState(true);
   const [lottieData, setLottieData] = useState<unknown | null>(null);
   const [lottieError, setLottieError] = useState(false);
   const lottieRef = useRef<LottieRefCurrentProps | null>(null);
@@ -450,7 +451,14 @@ export function TemplateEditorPreview({
       if (audioRef.current && previewAudioUrl) plays.push(audioRef.current.play());
       void Promise.allSettled(plays).then((settled) => {
         const anyPlayed = settled.some((r) => r.status === "fulfilled");
-        setPlaying(anyPlayed || hasLottie);
+        const shouldPlay = anyPlayed || hasLottie;
+        setPlaying(shouldPlay);
+        // Force Lottie back to frame 0 even if playing state didn't change
+        if (hasLottie && lottieRef.current && shouldPlay) {
+          window.requestAnimationFrame(() => {
+            lottieRef.current?.goToAndPlay(0, true);
+          });
+        }
       });
       return;
     }
@@ -462,7 +470,14 @@ export function TemplateEditorPreview({
       }
       void a
         .play()
-        .then(() => setPlaying(true))
+        .then(() => {
+          setPlaying(true);
+          if (hasLottie && lottieRef.current) {
+            window.requestAnimationFrame(() => {
+              lottieRef.current?.goToAndPlay(0, true);
+            });
+          }
+        })
         .catch(() => setPlaying(hasLottie));
       return;
     }
@@ -477,6 +492,33 @@ export function TemplateEditorPreview({
   }, [plateVideoSrc, previewAudioUrl, useLottie, hasLottie]);
 
   const progressPct = duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0;
+
+  const handleMuteToggle = useCallback(() => {
+    const next = !isMuted;
+    if (videoRef.current) videoRef.current.muted = next;
+    if (audioRef.current) audioRef.current.muted = next;
+    setIsMuted(next);
+  }, [isMuted]);
+
+  const handleSeek = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (duration <= 0) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    const seekTo = ratio * duration;
+    if (videoRef.current) videoRef.current.currentTime = seekTo;
+    if (audioRef.current) audioRef.current.currentTime = seekTo;
+    setCurrentTime(seekTo);
+  }, [duration]);
+
+  const handleFullscreen = useCallback(() => {
+    const el = document.getElementById("template-editor-preview");
+    if (!el) return;
+    if (document.fullscreenElement) {
+      void document.exitFullscreen();
+    } else {
+      void el.requestFullscreen().catch(() => {});
+    }
+  }, []);
 
   return (
     <div id="template-editor-preview" className="relative mx-auto w-full max-w-[300px] sm:max-w-[320px] lg:max-w-[360px]">
@@ -503,7 +545,7 @@ export function TemplateEditorPreview({
                 playsInline
                 preload="metadata"
                 className="absolute inset-0 z-10 h-full w-full object-cover"
-                muted
+                muted={isMuted}
                 aria-label={posterAlt}
               />
               {useComposite && playing ? (
@@ -650,32 +692,95 @@ export function TemplateEditorPreview({
           className="pointer-events-none absolute inset-0 z-30"
           style={{ backgroundColor: "rgba(0, 0, 0, 0.08)", mixBlendMode: "soft-light" }}
         />
-        <div className="pointer-events-none absolute right-1 top-1 z-[55] hidden select-none opacity-80 lg:block">
-          <Image src="/logo/logo.svg" alt="" width={36} height={36} className="h-8 w-auto object-contain" />
-        </div>
-        <div className="pointer-events-none absolute bottom-16 left-4 z-50 rounded-full bg-black/70 px-3 py-1 text-[10px] uppercase tracking-[0.3em] text-white">
-          Preview: low quality
-        </div>
-        <div className="absolute bottom-0 left-0 right-0 z-50 flex items-center gap-2 bg-black/60 px-2 py-2 text-xs text-white">
-          <button type="button" className="px-1 hover:text-white/90" onClick={restart} aria-label="Restart preview">
-            ↺
+
+        {/* Top controls: mute + fullscreen */}
+        <div className="absolute left-0 right-0 top-0 z-50 flex items-start justify-between p-3">
+          <button
+            type="button"
+            onClick={handleMuteToggle}
+            aria-label={isMuted ? "Unmute" : "Mute"}
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-sm transition hover:bg-black/70"
+          >
+            {isMuted ? (
+              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <path d="M11 5 6 9H2v6h4l5 4V5z" />
+                <line x1="23" y1="9" x2="17" y2="15" />
+                <line x1="17" y1="9" x2="23" y2="15" />
+              </svg>
+            ) : (
+              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <path d="M11 5 6 9H2v6h4l5 4V5z" />
+                <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+              </svg>
+            )}
           </button>
           <button
             type="button"
-            className="px-1 hover:text-white/90"
-            onClick={() => void togglePlaybackFromUserGesture()}
-            aria-label={playing ? "Pause" : "Play"}
+            onClick={handleFullscreen}
+            aria-label="Toggle fullscreen"
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-sm transition hover:bg-black/70"
           >
-            {playing ? "❚❚" : "▶"}
+            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
+            </svg>
           </button>
-          <span className="tabular-nums text-white/80">
-            {useVideo || useComposite || hasAudio ? formatTime(currentTime) : "00:00"}
-          </span>
-          <div className="h-1 flex-1 rounded-full bg-white/20">
-            <div
-              className="h-full rounded-full bg-[var(--brand-primary)] transition-[width] duration-150"
-              style={{ width: `${useVideo || useComposite || hasAudio ? progressPct : 33}%` }}
-            />
+        </div>
+
+        {/* Preview watermark */}
+        <div className="pointer-events-none absolute bottom-[3.5rem] left-4 z-50 rounded-full bg-black/70 px-3 py-1 text-[10px] uppercase tracking-[0.3em] text-white">
+          Preview: low quality
+        </div>
+
+        {/* Seekable progress bar */}
+        <div
+          className="absolute bottom-[2.75rem] left-0 right-0 z-50 h-1 cursor-pointer bg-white/20"
+          onClick={handleSeek}
+          role="slider"
+          aria-label="Seek video"
+          aria-valuenow={Math.round(progressPct)}
+          aria-valuemin={0}
+          aria-valuemax={100}
+        >
+          <div
+            className="h-full bg-[#e85025] transition-[width] duration-150"
+            style={{ width: `${useVideo || useComposite || hasAudio ? progressPct : 0}%` }}
+          />
+        </div>
+
+        {/* Bottom controls bar */}
+        <div className="absolute bottom-0 left-0 right-0 z-50 flex h-11 items-center justify-between bg-black/60 px-3 text-white">
+          <div className="flex items-center gap-3">
+            <button type="button" onClick={restart} aria-label="Restart preview" className="opacity-75 transition hover:opacity-100">
+              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                <path d="M3 3v5h5" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              onClick={() => void togglePlaybackFromUserGesture()}
+              aria-label={playing ? "Pause" : "Play"}
+              className="opacity-75 transition hover:opacity-100"
+            >
+              {playing ? (
+                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor">
+                  <rect x="6" y="4" width="4" height="16" rx="1" />
+                  <rect x="14" y="4" width="4" height="16" rx="1" />
+                </svg>
+              ) : (
+                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor">
+                  <path d="M5 3l14 9-14 9V3z" />
+                </svg>
+              )}
+            </button>
+            <span className="tabular-nums text-xs text-white/60">
+              {useVideo || useComposite || hasAudio ? formatTime(currentTime) : "00:00"}
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="h-1.5 w-1.5 rounded-full bg-white/30" />
+            <div className="h-1.5 w-4 rounded-full bg-white" />
+            <div className="h-1.5 w-1.5 rounded-full bg-white/30" />
           </div>
         </div>
       </div>

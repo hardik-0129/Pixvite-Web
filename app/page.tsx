@@ -40,7 +40,7 @@ export default async function HomePage() {
               href="/templates"
               className="inline-flex min-w-[200px] items-center justify-center gap-2 rounded-full px-9 py-3.5 font-heading text-sm font-bold text-white shadow-[0_8px_28px_-6px_rgba(255,100,90,0.45)] transition hover:brightness-[1.03] hover:shadow-[0_10px_32px_-6px_rgba(255,90,100,0.5)] active:scale-[0.99]"
               style={{
-                background: "linear-gradient(90deg, #ff9966 0%, #ff5e62 55%, #ff5a7a 100%)",
+                background: "#e85025",
               }}
             >
               Browse Templates

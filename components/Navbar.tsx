@@ -348,7 +348,7 @@ export function Navbar() {
               <Link
                 href="/festival-bundles"
                 className="rounded-full py-3.5 text-center text-sm font-semibold text-white shadow-sm transition hover:opacity-95"
-                style={{ background: "linear-gradient(90deg, var(--brand-start), var(--brand-end))", ...touch }}
+                style={{ background: "#e85025" }}
                 onClick={closeMobile}
               >
                 🎉 Festival Bundles
@@ -379,7 +379,7 @@ export function Navbar() {
                   <Link
                     href="/profile"
                     className="rounded-full py-3.5 text-center text-sm font-semibold text-white shadow-sm transition hover:opacity-95"
-                    style={{ background: "linear-gradient(90deg, var(--brand-start), var(--brand-end))", ...touch }}
+                    style={{ background: "#e85025", ...touch }}
                     onClick={closeMobile}
                   >
                     My Account
@@ -397,7 +397,7 @@ export function Navbar() {
                 <Link
                   href="/login"
                   className="rounded-full py-3.5 text-center text-sm font-semibold text-white shadow-sm transition hover:opacity-95"
-                  style={{ background: "linear-gradient(90deg, var(--brand-start), var(--brand-end))", ...touch }}
+                  style={{ background: "#e85025", ...touch }}
                   onClick={closeMobile}
                 >
                   Login
@@ -522,7 +522,7 @@ export function Navbar() {
               <Link
                 href="/festival-bundles"
                 className="ml-1 inline-flex items-center gap-1 rounded-full px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
-                style={{ background: "linear-gradient(135deg, var(--brand-start), var(--brand-end))", ...touch }}
+                style={{ background: "#e85025", ...touch }}
               >
                 🎉 Festival Bundles
               </Link>
@@ -583,7 +583,7 @@ export function Navbar() {
                     <Link
                       href="/profile"
                       className="rounded-full px-6 py-2 font-medium text-white"
-                      style={{ background: "linear-gradient(90deg, var(--brand-start), var(--brand-end))" }}
+                      style={{ background: "#e85025" }}
                     >
                       My Account
                     </Link>
@@ -599,7 +599,7 @@ export function Navbar() {
                   <Link
                     href="/login"
                     className="rounded-full px-6 py-2 font-medium text-white"
-                    style={{ background: "linear-gradient(90deg, var(--brand-start), var(--brand-end))" }}
+                    style={{ background: "#e85025" }}
                   >
                     Login
                   </Link>

@@ -75,7 +75,7 @@ export function FAQAccordion() {
       <div className="mx-auto max-w-[1400px] px-4">
         <h2 className={`text-center leading-tight tracking-tight ${sectionHeading}`}>
           <span className="text-[var(--text-primary)]">Frequently Asked </span>
-          <span className="text-[#ff6b6b]">Questions</span>
+          <span className="text-[#e85025]">Questions</span>
         </h2>
         <p className="mx-auto mt-4 max-w-xl text-center text-[15px] leading-relaxed text-[#888888] sm:text-base">
           Everything you need to know about creating beautiful video invitations with Pixvite
@@ -102,13 +102,13 @@ export function FAQAccordion() {
                   >
                     <span
                       className="font-heading text-[15px] font-semibold leading-snug sm:text-base"
-                      style={{ color: isOpen ? "#ff6b6b" : "var(--text-primary)" }}
+                      style={{ color: isOpen ? "#e85025" : "var(--text-primary)" }}
                     >
                       {item.q}
                     </span>
                     <span
                       className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors ${
-                        isOpen ? "bg-[#ff6b6b] text-white" : "bg-[#ececec] text-[#555555]"
+                        isOpen ? "bg-[#e85025] text-white" : "bg-[#ececec] text-[#555555]"
                       }`}
                       aria-hidden
                     >

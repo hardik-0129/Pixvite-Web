@@ -16,7 +16,7 @@ export async function GET(_request: Request, ctx: RouteContext) {
     return NextResponse.json({ message: "Video not ready yet." }, { status: 409 });
   }
 
-  const renderServerUrl = (process.env.NEXT_PUBLIC_LOTTIE_RENDER_SERVER_URL || "").trim();
+  const renderServerUrl = (process.env.NEXT_PUBLIC_LOTTIE_RENDER_SERVER_URL || "").trim().replace(/\/+$/, "");
   if (!renderServerUrl) {
     return NextResponse.json({ message: "Render server not configured." }, { status: 503 });
   }

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getOrderById, markOrderRenderDone } from "@/lib/template-orders";
+import { getOrderById, markOrderRenderDone, markOrderRenderError } from "@/lib/template-orders";
 
 export const runtime = "nodejs";
 
@@ -20,7 +20,7 @@ export async function GET(_request: Request, ctx: RouteContext) {
     return NextResponse.json({ status: "error", error: order.renderError ?? "Render failed." });
   }
 
-  const renderServerUrl = (process.env.NEXT_PUBLIC_LOTTIE_RENDER_SERVER_URL || "").trim();
+  const renderServerUrl = (process.env.NEXT_PUBLIC_LOTTIE_RENDER_SERVER_URL || "").trim().replace(/\/+$/, "");
   if (!renderServerUrl) {
     return NextResponse.json({ status: order.renderStatus ?? "pending", progress: 0 });
   }
@@ -48,6 +48,10 @@ export async function GET(_request: Request, ctx: RouteContext) {
   };
 
   if (data.done) {
+    if (data.error) {
+      await markOrderRenderError(orderId, data.error);
+      return NextResponse.json({ status: "error", error: data.error });
+    }
     await markOrderRenderDone(orderId);
     return NextResponse.json({ status: "done", progress: 1 });
   }

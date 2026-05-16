@@ -5,13 +5,13 @@ const statCardClass =
   "w-[calc(50%-0.5rem)] max-w-[calc(50%-0.5rem)] shrink-0 sm:w-[220px] sm:max-w-none rounded-2xl border border-pink-100 bg-white/70 px-4 py-6 text-center shadow-[0_10px_40px_rgba(255,91,91,0.15)] backdrop-blur-md transition-all duration-300 hover:shadow-[0_20px_60px_rgba(255,91,91,0.25)] sm:px-6 sm:py-10";
 
 const categoryPillClass =
-  "group flex items-center gap-3 rounded-full border border-pink-100 bg-white px-5 py-2.5 font-medium text-gray-700 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:bg-pink-50 hover:text-pink-500 hover:shadow-md";
+  "group flex items-center gap-3 rounded-full border border-pink-100 bg-white px-5 py-2.5 font-medium text-gray-700 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:bg-pink-50 hover:text-[#e85025] hover:shadow-md";
 
 const featureCardClass =
   "flex w-full flex-col gap-3 rounded-2xl border border-[#ffe0da] bg-white p-5 shadow-[0_10px_30px_rgba(15,23,42,0.06)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_18px_45px_rgba(15,23,42,0.12)] md:p-7";
 
 const iconWrapClass =
-  "mb-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#FDE2E8] text-[#B8325E]";
+  "mb-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#feede3] text-[#e85025]";
 
 function IconHeart({ className = "h-5 w-5" }: { className?: string }) {
   return (
@@ -252,7 +252,7 @@ export function AboutUsContent() {
       <div
         className="min-h-screen font-body"
         style={{
-          background: "linear-gradient(rgb(253, 242, 246) 0%, rgb(249, 232, 238) 70%, rgb(255, 255, 255) 100%)",
+          background: "#feede3",
         }}
       >
         <div className="relative overflow-hidden pb-5 pt-5 sm:pb-10 sm:pt-10">
@@ -322,7 +322,7 @@ export function AboutUsContent() {
           </div>
         </div>
 
-        <div className="bg-gradient-to-b from-rose-50 via-pink-50 to-pink-50 py-16 sm:py-20">
+        <div className="py-16 sm:py-20" style={{ backgroundColor: "#feede3" }}>
           <div className="mx-auto max-w-7xl px-4 text-center sm:px-6 lg:px-8">
             <h2 className="font-about-display mb-4 text-4xl font-semibold text-[#2b1e1e] md:text-5xl">
               Design <span className="text-about-linear">Everything</span> You Need
@@ -368,12 +368,12 @@ export function AboutUsContent() {
                       </div>
                     </div>
                     <div className="flex gap-4 pt-2">
-                      <div className="w-1/2 rounded-2xl border border-pink-200 bg-[hsl(340_40%_95%)] px-4 py-4 shadow-sm">
-                        <p className="text-center font-about-display text-2xl font-bold text-pink-500 md:text-4xl">100%</p>
+                      <div className="w-1/2 rounded-2xl border border-pink-200 bg-[#feede3] px-4 py-4 shadow-sm">
+                        <p className="text-center font-about-display text-2xl font-bold md:text-4xl" style={{ color: "#e85025" }}>100%</p>
                         <p className="text-center text-sm text-[#6b4f4f] md:text-lg">Customer Focused</p>
                       </div>
-                      <div className="w-1/2 rounded-2xl border border-pink-200 bg-[hsl(340_40%_95%)] px-4 py-4 shadow-sm">
-                        <p className="text-center font-about-display text-2xl font-bold text-pink-500 md:text-4xl">24/7</p>
+                      <div className="w-1/2 rounded-2xl border border-pink-200 bg-[#feede3] px-4 py-4 shadow-sm">
+                        <p className="text-center font-about-display text-2xl font-bold md:text-4xl" style={{ color: "#e85025" }}>24/7</p>
                         <p className="text-center text-sm text-[#6b4f4f] md:text-lg">Support Available</p>
                       </div>
                     </div>
@@ -401,8 +401,7 @@ export function AboutUsContent() {
           <div
             className="px-4 py-6 sm:px-6 lg:px-8"
             style={{
-              background:
-                "linear-gradient(rgb(255, 255, 255) 0%, rgb(255, 245, 247) 30%, rgb(252, 232, 239) 50%, rgb(255, 245, 247) 70%, rgb(255, 255, 255) 100%)",
+              background: "#feede3",
             }}
           >
             <div className="mx-auto max-w-6xl pb-10 pt-4">
@@ -429,7 +428,7 @@ export function AboutUsContent() {
         </div>
 
         <div className="bg-white px-4 py-14 sm:py-16">
-          <div className="relative mx-auto max-w-4xl overflow-hidden rounded-3xl bg-gradient-to-br from-[#C33764] to-[#8E1E4F] px-6 py-14 text-center shadow-xl sm:px-12 sm:py-16">
+          <div className="relative mx-auto max-w-4xl overflow-hidden rounded-3xl bg-[#e85025] px-6 py-14 text-center shadow-xl sm:px-12 sm:py-16">
             <div className="absolute right-0 top-0 h-64 w-64 -translate-y-1/2 translate-x-1/2 rounded-full bg-white/5" />
             <div className="absolute bottom-0 left-0 h-48 w-48 -translate-x-1/2 translate-y-1/2 rounded-full bg-white/5" />
             <div className="relative flex flex-col items-center gap-6">
@@ -441,7 +440,7 @@ export function AboutUsContent() {
               </p>
               <Link
                 href="/templates"
-                className="inline-flex items-center gap-2 rounded-full bg-white px-10 py-3.5 text-sm font-semibold text-[#C33764] shadow-lg transition-all duration-300 hover:scale-105 active:scale-95"
+                className="inline-flex items-center gap-2 rounded-full bg-white px-10 py-3.5 text-sm font-semibold text-[#e85025] shadow-lg transition-all duration-300 hover:scale-105 active:scale-95"
               >
                 Create Your Invitation →
               </Link>
