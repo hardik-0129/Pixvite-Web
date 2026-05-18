@@ -121,13 +121,16 @@ export function TemplateEditorPreview({
   lottiePreviewUrl,
 }: Props) {
   const [playing, setPlaying] = useState(false);
-  const [isMuted, setIsMuted] = useState(true);
+  const [isMuted, setIsMuted] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const [lottieData, setLottieData] = useState<unknown | null>(null);
   const [lottieError, setLottieError] = useState(false);
   const lottieRef = useRef<LottieRefCurrentProps | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const baseLottieDataRef = useRef<unknown | null>(null);
+  const seekingRef = useRef(false);
+  const lottieCurrentTimeRef = useRef(0);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
 
@@ -164,7 +167,7 @@ export function TemplateEditorPreview({
     if (v && Number.isFinite(v.currentTime)) return v.currentTime;
     const a = audioRef.current;
     if (a && Number.isFinite(a.currentTime)) return a.currentTime;
-    return 0;
+    return lottieCurrentTimeRef.current;
   }, []);
 
   const startPlaybackFromUserGesture = useCallback(async () => {
@@ -344,7 +347,13 @@ export function TemplateEditorPreview({
     const onMeta = () => {
       if (Number.isFinite(v.duration) && v.duration > 0) setDuration(v.duration);
     };
-    const onEnded = () => setPlaying(false);
+    const onEnded = () => {
+      // Seek to last decodable frame so the player doesn't go blank at end
+      if (Number.isFinite(v.duration) && v.duration > 0) {
+        v.currentTime = Math.max(0, v.duration - 0.05);
+      }
+      setPlaying(false);
+    };
     v.addEventListener("timeupdate", onTime);
     v.addEventListener("loadedmetadata", onMeta);
     v.addEventListener("ended", onEnded);
@@ -366,7 +375,12 @@ export function TemplateEditorPreview({
     const onMeta = () => {
       if (Number.isFinite(a.duration) && a.duration > 0) setDuration(a.duration);
     };
-    const onEnded = () => setPlaying(false);
+    const onEnded = () => {
+      if (Number.isFinite(a.duration) && a.duration > 0) {
+        a.currentTime = Math.max(0, a.duration - 0.05);
+      }
+      setPlaying(false);
+    };
     a.addEventListener("timeupdate", onTime);
     a.addEventListener("loadedmetadata", onMeta);
     a.addEventListener("ended", onEnded);
@@ -377,13 +391,71 @@ export function TemplateEditorPreview({
     };
   }, [previewAudioUrl, plateVideoSrc]);
 
+  // Set duration from Lottie data for pure Lottie-only mode (no video, no audio clock)
+  useEffect(() => {
+    if (!useLottie || !lottieData || plateVideoSrc || previewAudioUrl) return;
+    const d = lottieData as Record<string, unknown>;
+    const fr = Number(d.fr) || 30;
+    const op = Number(d.op) || 0;
+    const ip = Number(d.ip) || 0;
+    const lottieDuration = (op - ip) / fr;
+    if (lottieDuration > 0) setDuration(lottieDuration);
+  }, [useLottie, lottieData, plateVideoSrc, previewAudioUrl]);
+
+  // Track currentTime from Lottie frames in pure Lottie-only mode
+  useEffect(() => {
+    if (!playing || !useLottie || !hasLottie) return;
+    const id = window.setInterval(() => {
+      const api = lottieRef.current;
+      if (!api?.animationLoaded || !lottieData) return;
+      const fr = Number((lottieData as Record<string, unknown>).fr) || 30;
+      const item = (api as unknown as { animationItem?: { currentFrame?: number } }).animationItem;
+      const frame = Number(item?.currentFrame ?? 0);
+      const t = frame / fr;
+      lottieCurrentTimeRef.current = t;
+      setCurrentTime(t);
+    }, 80);
+    return () => window.clearInterval(id);
+  }, [playing, useLottie, hasLottie, lottieData]);
+
+  // Track fullscreen state for proper layout
+  useEffect(() => {
+    const onFSChange = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", onFSChange);
+    return () => document.removeEventListener("fullscreenchange", onFSChange);
+  }, []);
+
+  // Re-sync Lottie after the video has fully decoded the seeked frame
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v || !plateVideoSrc) return;
+    const onSeeked = () => {
+      seekingRef.current = false;
+      const api = lottieRef.current;
+      if (!api?.animationLoaded || !lottieData) return;
+      const fr = Number((lottieData as Record<string, unknown>).fr) || 30;
+      const targetFrame = v.currentTime * fr;
+      if (playing) {
+        api.goToAndPlay(targetFrame, true);
+      } else {
+        api.goToAndStop(targetFrame, true);
+      }
+    };
+    v.addEventListener("seeked", onSeeked);
+    return () => v.removeEventListener("seeked", onSeeked);
+  }, [plateVideoSrc, lottieData, playing]);
+
   useEffect(() => {
     if (!playing || !hasLottie) return;
+    // Lottie-only mode: no external master clock, so no drift correction needed
+    if (useLottie) return;
     const api = lottieRef.current;
     const fr = Number((lottieData as Record<string, unknown> | null)?.fr) || 30;
     if (!api || !api.animationLoaded || !Number.isFinite(fr) || fr <= 0) return;
 
     const id = window.setInterval(() => {
+      // Skip drift correction while a seek is in progress — the seeked event handles re-sync
+      if (seekingRef.current) return;
       const item = (api as unknown as { animationItem?: { currentFrame?: number } }).animationItem;
       const currentFrame = Number(item?.currentFrame ?? 0);
       const lottieTime = currentFrame / fr;
@@ -394,14 +466,14 @@ export function TemplateEditorPreview({
       }
     }, 250);
     return () => window.clearInterval(id);
-  }, [playing, hasLottie, lottieData, getMasterTime]);
+  }, [playing, hasLottie, useLottie, lottieData, getMasterTime]);
 
   const syncLottiePlayback = useCallback(() => {
     const api = lottieRef.current;
     if (!api?.animationLoaded) return;
+    const fr = Number((lottieData as Record<string, unknown> | null)?.fr) || 30;
+    const masterTime = getMasterTime();
     if (playing) {
-      const fr = Number((lottieData as Record<string, unknown> | null)?.fr) || 30;
-      const masterTime = getMasterTime();
       if (Number.isFinite(fr) && fr > 0 && Number.isFinite(masterTime) && masterTime >= 0) {
         api.goToAndPlay(masterTime * fr, true);
       } else {
@@ -409,7 +481,10 @@ export function TemplateEditorPreview({
       }
     } else {
       api.pause();
-      api.goToAndStop(0, true);
+      // Freeze at the current frame — not frame 0 — so the paused frame stays visible
+      if (Number.isFinite(fr) && fr > 0 && Number.isFinite(masterTime) && masterTime >= 0) {
+        api.goToAndStop(masterTime * fr, true);
+      }
     }
   }, [playing, lottieData, getMasterTime]);
 
@@ -483,6 +558,8 @@ export function TemplateEditorPreview({
     }
     const api = lottieRef.current;
     if (useLottie && api) {
+      lottieCurrentTimeRef.current = 0;
+      setCurrentTime(0);
       api.goToAndStop(0, true);
       api.play();
       setPlaying(true);
@@ -505,10 +582,29 @@ export function TemplateEditorPreview({
     const rect = e.currentTarget.getBoundingClientRect();
     const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
     const seekTo = ratio * duration;
-    if (videoRef.current) videoRef.current.currentTime = seekTo;
+    if (!videoRef.current) {
+      // No plate video — video.seeked never fires, sync Lottie directly
+      if (audioRef.current) audioRef.current.currentTime = seekTo;
+      lottieCurrentTimeRef.current = seekTo;
+      setCurrentTime(seekTo);
+      const api = lottieRef.current;
+      if (api?.animationLoaded && lottieData) {
+        const fr = Number((lottieData as Record<string, unknown>).fr) || 30;
+        if (playing) {
+          api.goToAndPlay(seekTo * fr, true);
+        } else {
+          api.goToAndStop(seekTo * fr, true);
+        }
+      }
+      return;
+    }
+    // Mark seeking so the drift-correction interval skips until video.seeked fires
+    seekingRef.current = true;
+    videoRef.current.currentTime = seekTo;
     if (audioRef.current) audioRef.current.currentTime = seekTo;
     setCurrentTime(seekTo);
-  }, [duration]);
+    // Lottie re-sync happens in the video "seeked" event handler (after frame is decoded)
+  }, [duration, lottieData, playing]);
 
   const handleFullscreen = useCallback(() => {
     const el = document.getElementById("template-editor-preview");
@@ -521,9 +617,12 @@ export function TemplateEditorPreview({
   }, []);
 
   return (
-    <div id="template-editor-preview" className="relative mx-auto w-full max-w-[300px] sm:max-w-[320px] lg:max-w-[360px]">
-      <div className="group relative aspect-[9/16] w-full overflow-hidden rounded-2xl border border-black/10 bg-black shadow-[0_12px_40px_-8px_rgba(15,23,42,0.35)] ring-1 ring-black/5">
-        {hasAudio && previewAudioUrl ? <audio ref={audioRef} src={previewAudioUrl} preload="metadata" /> : null}
+    <div
+      id="template-editor-preview"
+      className={`relative mx-auto w-full ${isFullscreen ? "flex h-full items-center justify-center bg-black" : "max-w-[300px] sm:max-w-[320px] lg:max-w-[360px]"}`}
+    >
+      <div className={`group relative aspect-[9/16] overflow-hidden bg-black shadow-[0_12px_40px_-8px_rgba(15,23,42,0.35)] ${isFullscreen ? "h-full w-auto rounded-none border-0 ring-0" : "w-full rounded-2xl border border-black/10 ring-1 ring-black/5"}`}>
+        {hasAudio && previewAudioUrl ? <audio ref={audioRef} src={previewAudioUrl} preload="metadata" muted={isMuted} /> : null}
         <div className="absolute inset-0 z-10 transition-opacity duration-700" style={{ overflow: "hidden" }}>
           {useIframe ? (
             <iframe
@@ -548,7 +647,7 @@ export function TemplateEditorPreview({
                 muted={isMuted}
                 aria-label={posterAlt}
               />
-              {useComposite && playing ? (
+              {useComposite ? (
                 <div className="pointer-events-none absolute inset-0 z-15">
                   <Lottie
                     lottieRef={lottieRef}
@@ -584,19 +683,17 @@ export function TemplateEditorPreview({
                 sizes="(max-width: 640px) 90vw, (max-width: 1024px) 320px, 360px"
                 priority
               />
-              {playing ? (
-                <div className="pointer-events-none absolute inset-0 z-15">
-                  <Lottie
-                    lottieRef={lottieRef}
-                    animationData={lottieData}
-                    loop
-                    autoplay={false}
-                    className="h-full w-full [&_svg]:mx-auto [&_svg]:max-h-full [&_svg]:w-auto"
-                    onDOMLoaded={syncLottiePlayback}
-                    onDataFailed={recoverLottieData}
-                  />
-                </div>
-              ) : null}
+              <div className="pointer-events-none absolute inset-0 z-15">
+                <Lottie
+                  lottieRef={lottieRef}
+                  animationData={lottieData}
+                  loop
+                  autoplay={false}
+                  className="h-full w-full [&_svg]:mx-auto [&_svg]:max-h-full [&_svg]:w-auto"
+                  onDOMLoaded={syncLottiePlayback}
+                  onDataFailed={recoverLottieData}
+                />
+              </div>
               {!playing && (
                 <button
                   type="button"
@@ -612,26 +709,15 @@ export function TemplateEditorPreview({
             </div>
           ) : useLottie ? (
             <div className="relative flex h-full w-full items-center justify-center bg-neutral-950">
-              {playing ? (
-                <Lottie
-                  lottieRef={lottieRef}
-                  animationData={lottieData}
-                  loop
-                  autoplay={false}
-                  className="h-full w-full [&_svg]:mx-auto [&_svg]:max-h-full [&_svg]:w-auto"
-                  onDOMLoaded={syncLottiePlayback}
-                  onDataFailed={recoverLottieData}
-                />
-              ) : (
-                <Image
-                  src={posterSrc}
-                  alt={posterAlt}
-                  fill
-                  className="object-cover"
-                  sizes="(max-width: 640px) 90vw, (max-width: 1024px) 320px, 360px"
-                  priority
-                />
-              )}
+              <Lottie
+                lottieRef={lottieRef}
+                animationData={lottieData}
+                loop
+                autoplay={false}
+                className="h-full w-full [&_svg]:mx-auto [&_svg]:max-h-full [&_svg]:w-auto"
+                onDOMLoaded={syncLottiePlayback}
+                onDataFailed={recoverLottieData}
+              />
               {!playing && (
                 <button
                   type="button"
@@ -743,7 +829,7 @@ export function TemplateEditorPreview({
         >
           <div
             className="h-full bg-[#e85025] transition-[width] duration-150"
-            style={{ width: `${useVideo || useComposite || hasAudio ? progressPct : 0}%` }}
+            style={{ width: `${useVideo || useComposite || hasAudio || useLottie ? progressPct : 0}%` }}
           />
         </div>
 
@@ -774,7 +860,7 @@ export function TemplateEditorPreview({
               )}
             </button>
             <span className="tabular-nums text-xs text-white/60">
-              {useVideo || useComposite || hasAudio ? formatTime(currentTime) : "00:00"}
+              {useVideo || useComposite || hasAudio || useLottie ? formatTime(currentTime) : "00:00"}
             </span>
           </div>
           <div className="flex items-center gap-1.5">
