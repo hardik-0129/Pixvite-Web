@@ -6,7 +6,7 @@ export default function ContactPage() {
       <div className="mb-6 flex w-full justify-center border-b border-[var(--border)] bg-[var(--card)] px-4 py-10">
         <div className="w-full max-w-2xl">
           <h1 className="mb-2 text-center text-3xl font-semibold text-[var(--foreground)]">
-            ⭐ CONTACT US — Pixvite
+            ⭐ CONTACT US — InvitesMagic
           </h1>
           <p className="mb-4 text-center text-[var(--foreground)]">We&apos;re here to help you!</p>
           <div className="mb-3 text-center text-[var(--foreground)]">
@@ -16,17 +16,17 @@ export default function ContactPage() {
             <strong>📩 Email</strong>
             <br />
             <a  
-              href="mailto:hello@pixvite.com"
+              href="mailto:hello@ InvitesMagic .com"
               className="underline"
               style={{ color: "var(--brand-end)" }}
             >
-              hello@pixvite.com
+              hello@ InvitesMagic .com
             </a>
           </div>
           <div className="mb-3 text-[var(--foreground)]">
             <strong>📸 Instagram (Primary Support)</strong>
             <br />
-            <span className="font-medium">@pixvite</span>
+            <span className="font-medium">@ InvitesMagic </span>
           </div>
           <div className="mb-3 text-[var(--foreground)]">We reply quickly on Instagram DMs, including:</div>
           <ul className="mx-auto mb-2 inline-block list-inside list-disc space-y-1 text-left text-[var(--foreground)]">
@@ -73,11 +73,11 @@ export default function ContactPage() {
               </h3>
               <p style={{ color: "var(--muted-foreground)" }}>
                 <a
-                  href="mailto:hello@pixvite.com"
+                  href="mailto:hello@ InvitesMagic .com"
                   className="transition hover:opacity-80"
                   style={{ color: "var(--brand-end)" }}
                 >
-                  hello@pixvite.com
+                  hello@ InvitesMagic .com
                 </a>
               </p>
             </div>

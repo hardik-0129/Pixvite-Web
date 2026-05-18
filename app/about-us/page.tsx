@@ -10,9 +10,9 @@ const playfairAbout = Playfair_Display({
 });
 
 export const metadata: Metadata = {
-  title: "About Us — Pixvite",
+  title: "About Us — InvitesMagic",
   description:
-    "Learn how Pixvite helps you create premium, share-ready video invitations for weddings, birthdays, engagements, and more.",
+    "Learn how InvitesMagic helps you create premium, share-ready video invitations for weddings, birthdays, engagements, and more.",
 };
 
 export default function AboutUsPage() {

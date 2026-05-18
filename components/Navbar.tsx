@@ -189,8 +189,8 @@ export function Logo() {
         className="min-w-0 truncate text-lg font-bold leading-tight sm:text-2xl"
         style={{ fontFamily: "var(--font-header)" }}
       >
-        <span style={{ color: "var(--brand-end)" }}>Pix</span>
-        <span style={{ color: "var(--foreground)" }}>vite</span>
+        <span style={{ color: "var(--brand-end)" }}>Invites</span>
+        <span style={{ color: "var(--foreground)" }}>Magic</span>
       </span>
     </Link>
   );

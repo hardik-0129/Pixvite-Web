@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-const STORAGE_KEY = "pixvite-offer-end";
+const STORAGE_KEY = " InvitesMagic -offer-end";
 
 function pad(n: number) {
   return n.toString().padStart(2, "0");

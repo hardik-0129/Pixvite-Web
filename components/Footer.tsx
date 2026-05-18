@@ -24,8 +24,8 @@ function FooterBrandLogo() {
         </span>
       </span>
       <span className="text-xl font-bold tracking-tight">
-        <span style={{ color: "var(--brand-primary)" }}>Pix</span>
-        <span className="text-[var(--text-primary)]">vite</span>
+        <span style={{ color: "var(--brand-primary)" }}>Invites</span>
+        <span className="text-[var(--text-primary)]">Magic</span>
       </span>
     </Link>
   );
@@ -69,7 +69,7 @@ export function Footer() {
           <div>
             <FooterBrandLogo />
             <p className="mt-4 max-w-sm text-[14px] leading-relaxed text-[#666666]">
-              Introducing Pixvite — the easiest way to create beautiful video invitations &amp; greetings instantly.
+              Introducing InvitesMagic — the easiest way to create beautiful video invitations &amp; greetings instantly.
               Whether it&apos;s weddings, birthdays, anniversaries, or any celebration, we help you make it memorable.
             </p>
           </div>
@@ -154,7 +154,7 @@ export function Footer() {
         <hr className="my-12 border-[#e8e8e8]" />
 
         <div className="flex flex-col gap-4 text-[13px] sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-[#999999]">© 2026 Pixvite. All rights reserved.</p>
+          <p className="text-[#999999]">© 2026 InvitesMagic. All rights reserved.</p>
           <nav className="flex flex-wrap items-center gap-x-2 gap-y-2 text-[var(--brand-primary)]">
             <Link href="/contact" className="transition hover:underline">
               Privacy Policy

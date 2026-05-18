@@ -134,7 +134,7 @@ export function WhyPixviteSection() {
       <div className="mx-auto max-w-[1400px] px-4 lg:px-6">
         <h2 className={`text-center leading-tight tracking-tight ${sectionHeading}`}>
           <span className="text-[var(--text-primary)]">Why </span>
-          <span style={{ color: "#e85025" }}>Pixvite</span>
+          <span style={{ color: "#e85025" }}>InvitesMagic</span>
         </h2>
 
         <div className="mt-12 hidden md:flex md:flex-col md:items-center">

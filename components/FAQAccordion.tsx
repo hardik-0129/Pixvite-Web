@@ -11,10 +11,10 @@ type FAQItem = {
 
 const items: FAQItem[] = [
   {
-    q: "What is Pixvite and how does it work?",
+    q: "What is InvitesMagic and how does it work?",
     a: (
       <>
-        Pixvite is an online platform where you can create{" "}
+        InvitesMagic is an online platform where you can create{" "}
         <strong className="font-semibold text-[#333333]">beautiful HD video invitations</strong> for weddings,
         birthdays, and special events. Choose a template you love, personalize names, dates, and venues in our{" "}
         <strong className="font-semibold text-[#333333]">live preview editor</strong>, and when you&apos;re happy,{" "}
@@ -41,7 +41,7 @@ const items: FAQItem[] = [
     a: "Most invitations are ready within minutes after you confirm your details. Complex edits may take a little longer, but you&apos;ll see updates live in the editor.",
   },
   {
-    q: "Do I need an account to use Pixvite?",
+    q: "Do I need an account to use InvitesMagic?",
     a: "You can browse templates without signing up. Creating a draft, saving progress, and downloading may require a free account so we can deliver your video securely.",
   },
 ];
@@ -78,7 +78,7 @@ export function FAQAccordion() {
           <span className="text-[#e85025]">Questions</span>
         </h2>
         <p className="mx-auto mt-4 max-w-xl text-center text-[15px] leading-relaxed text-[#888888] sm:text-base">
-          Everything you need to know about creating beautiful video invitations with Pixvite
+          Everything you need to know about creating beautiful video invitations with InvitesMagic
         </p>
         <div className="max-w-4xl mx-auto space-y-3 sm:space-y-4">
 

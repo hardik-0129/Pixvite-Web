@@ -424,7 +424,7 @@ export function LoginSignupClient() {
   }
 
   const title =
-    mode === "login" ? "Welcome Back to Myvideoinvites!" :
+    mode === "login" ? "Welcome Back to  InvitesMagic !" :
     mode === "signup" ? "Create an Account" :
     mode === "forgot-email" ? "Forgot your password?" :
     "Reset Your Password";
@@ -549,7 +549,7 @@ export function LoginSignupClient() {
                   </button>
 
                   <p className="mt-3 text-center text-[13px] text-black">
-                    New to Myvideoinvites?{" "}
+                    New to  InvitesMagic?{" "}
                     <button type="button" onClick={() => { setMode("signup"); setMessage(""); }} className="cursor-pointer text-[#5961F8]">
                       Create an account
                     </button>
@@ -645,7 +645,7 @@ export function LoginSignupClient() {
                       className="mt-0.5 h-4 w-4 shrink-0 rounded border border-gray-300 bg-gray-50"
                     />
                     <label htmlFor="signup-terms" className="text-[12px] leading-snug text-gray-500 sm:text-[13px]">
-                      I agree to Myvideoinvites{" "}
+                      I agree to InvitesMagic {" "}
                       <Link href="/terms-conditions" target="_blank" rel="noopener noreferrer" className="text-[#5961F8]">Terms of Service</Link>
                       {" "}and{" "}
                       <Link href="/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-[#5961F8]">Privacy Policy</Link>

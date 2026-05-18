@@ -63,14 +63,14 @@ export async function POST(request: Request) {
     await transporter.sendMail({
       from: smtpFrom,
       to: email,
-      subject: "We received your message — Pixvite",
-      text: `Hi ${name},\n\nThanks for reaching out! We've received your message and will get back to you soon.\n\nYour message:\n${message}\n\n— Pixvite Team`,
+      subject: "We received your message — InvitesMagic",
+      text: `Hi ${name},\n\nThanks for reaching out! We've received your message and will get back to you soon.\n\nYour message:\n${message}\n\n— InvitesMagic Team`,
       html: `
         <div style="font-family:sans-serif;font-size:14px;color:#222;max-width:600px">
           <p>Hi <strong>${name}</strong>,</p>
           <p>Thanks for reaching out! We've received your message and will get back to you as soon as possible.</p>
           <blockquote style="border-left:3px solid #e85025;margin:16px 0;padding:8px 16px;color:#555;white-space:pre-wrap">${message.replace(/</g, "&lt;")}</blockquote>
-          <p style="color:#888;font-size:12px">— Pixvite Team</p>
+          <p style="color:#888;font-size:12px">— InvitesMagic Team</p>
         </div>`,
     });
 

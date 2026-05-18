@@ -262,7 +262,7 @@ export function AboutUsContent() {
               <span className="text-about-linear">Invitation Videos!</span>
             </h1>
             <p className="mx-auto mt-5 max-w-4xl text-[1.1rem] leading-9 text-gray-600 sm:mt-6 sm:text-lg sm:leading-relaxed">
-              Pixvite was created with one simple purpose: to make invitation videos that feel premium, personal, and easy to
+              InvitesMagic was created with one simple purpose: to make invitation videos that feel premium, personal, and easy to
               share. We started with the belief that announcing your special day shouldn&apos;t require editing skills or expensive
               studios. With the right design, music, and motion—anyone can send a video invite that truly feels special.
             </p>
@@ -290,15 +290,15 @@ export function AboutUsContent() {
                 <div className="flex w-[90%] max-w-xl flex-col gap-5 max-lg:w-[80%] max-sm:w-full">
                   <div className="space-y-6">
                     <h2 className="font-about-display text-2xl font-semibold text-[#2b1e1e] max-xs:text-2xl sm:text-4xl md:text-5xl">
-                      What is <span className="text-about-linear">Pixvite?</span>
+                      What is <span className="text-about-linear">InvitesMagic?</span>
                     </h2>
                     <p className="text-base leading-relaxed text-gray-600 md:text-lg">
-                      Pixvite is an online invitation video platform that helps you create modern, share-ready video invites for
+                      InvitesMagic is an online invitation video platform that helps you create modern, share-ready video invites for
                       all kinds of events. You can choose a style, add your details (names, date, time, venue, RSVP), and get a polished
                       invitation video that&apos;s perfect for WhatsApp, Instagram, and email.
                     </p>
                     <p className="text-base leading-relaxed text-gray-600 md:text-lg">
-                      Unlike general design tools, Pixvite focuses on one thing only: creating high-quality invitation videos that
+                      Unlike general design tools, InvitesMagic focuses on one thing only: creating high-quality invitation videos that
                       look premium, feel personal, and are easy to share.
                     </p>
                   </div>
@@ -385,7 +385,7 @@ export function AboutUsContent() {
                   <div className="relative h-[min(450px,70vw)] w-full overflow-hidden rounded-[30px] sm:h-[450px]">
                     <Image
                       src={visionImageSrc}
-                      alt="Pixvite on laptop and tablet"
+                      alt="InvitesMagic on laptop and tablet"
                       fill
                       className="object-cover"
                       sizes="(max-width: 1024px) 100vw, 50vw"
@@ -407,10 +407,10 @@ export function AboutUsContent() {
             <div className="mx-auto max-w-6xl pb-10 pt-4">
               <h2 className="text-center font-about-display text-[26px] font-black text-[#1A1A1A] md:text-[40px] lg:text-[44px]">
                 Why Choose
-                <span className="ml-2 text-about-linear">Pixvite?</span>
+                <span className="ml-2 text-about-linear">InvitesMagic?</span>
               </h2>
               <p className="mx-auto mb-6 mt-2 max-w-[600px] px-2 text-center text-sm leading-relaxed text-[#6B7280] md:text-base">
-                Start making invitation videos today with Pixvite!
+                Start making invitation videos today with InvitesMagic!
               </p>
               <div className="grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-3 lg:grid-cols-4">
                 {whyFeatures.map(({ title, body, Icon }) => (

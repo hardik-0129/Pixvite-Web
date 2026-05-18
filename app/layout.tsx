@@ -21,7 +21,7 @@ const spaceGrotesk = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: "Pixvite — Video Invitations",
+  title: "InvitesMagic — Video Invitations",
   description: "Instant video invitations for weddings, birthdays, engagements & more.",
 };
 
@@ -44,7 +44,7 @@ export default function RootLayout({
           offset={46}
           toastOptions={{
             style: {
-              background: "#000",
+              background: "#363636",
               color: "#fff",
               border: "none",
             },

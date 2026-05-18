@@ -52,9 +52,9 @@ export async function POST(request: Request) {
     const info = await transporter.sendMail({
       from: smtpFrom,
       to: email,
-      subject: "Your Pixvite OTP Code",
-      text: `Your Pixvite OTP is ${otp}. It is valid for one-time verification.`,
-      html: `<p>Your Pixvite OTP is <strong>${otp}</strong>.</p><p>Use this code to complete your verification.</p>`,
+      subject: "Your InvitesMagic OTP Code",
+      text: `Your InvitesMagic OTP is ${otp}. It is valid for one-time verification.`,
+      html: `<p>Your InvitesMagic OTP is <strong>${otp}</strong>.</p><p>Use this code to complete your verification.</p>`,
     });
 
     if (process.env.NODE_ENV !== "production") {

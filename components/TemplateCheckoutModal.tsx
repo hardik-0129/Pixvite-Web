@@ -256,7 +256,7 @@ export function TemplateCheckoutModal({ open, onClose, template, fieldValues, cu
       const rzp = new window.Razorpay({
         key: parsed.keyId,
         currency: parsed.currency,
-        name: "Pixvite",
+        name: "InvitesMagic",
         description: template.title,
         order_id: parsed.orderId,
         prefill: {
