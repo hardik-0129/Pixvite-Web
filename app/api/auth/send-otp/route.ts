@@ -17,7 +17,8 @@ export async function POST(request: Request) {
   const otp = await issueOtp(email);
   const smtpHost = process.env.SMTP_HOST;
   const smtpPort = Number(process.env.SMTP_PORT ?? 587);
-  const smtpSecure = process.env.SMTP_SECURE === "true";
+  // Port 465 is SMTPS (TLS from the start) — must be secure regardless of env value
+  const smtpSecure = smtpPort === 465 ? true : process.env.SMTP_SECURE === "true";
   const smtpUser = process.env.SMTP_USER;
   const smtpPass = process.env.SMTP_PASS;
   const smtpFrom = process.env.SMTP_FROM || smtpUser;
@@ -32,10 +33,7 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json(
-      {
-        ok: false,
-        message: "SMTP is not configured. Please set SMTP_* values in .env.",
-      },
+      { ok: false, message: "SMTP is not configured. Please set SMTP_* values in .env." },
       { status: 500 }
     );
   }
@@ -45,10 +43,8 @@ export async function POST(request: Request) {
       host: smtpHost,
       port: smtpPort,
       secure: smtpSecure,
-      auth: {
-        user: smtpUser,
-        pass: smtpPass,
-      },
+      auth: { type: "login", user: smtpUser, pass: smtpPass },
+      tls: { rejectUnauthorized: false },
     });
 
     await transporter.verify();
@@ -74,29 +70,21 @@ export async function POST(request: Request) {
       });
     }
   } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    console.error("[send-otp] error:", reason);
+
     if (process.env.NODE_ENV !== "production") {
-      const reason = error instanceof Error ? error.message : "Unknown SMTP error";
       return NextResponse.json(
-        {
-          ok: false,
-          message: "Failed to send OTP email.",
-          debug: { reason },
-        },
+        { ok: false, message: "Failed to send OTP email.", debug: { reason } },
         { status: 500 }
       );
     }
 
     return NextResponse.json(
-      {
-        ok: false,
-        message: "Failed to send OTP email. Check SMTP credentials/provider rules.",
-      },
+      { ok: false, message: "Failed to send OTP email. Check SMTP credentials/provider rules." },
       { status: 500 }
     );
   }
 
-  return NextResponse.json({
-    ok: true,
-    message: "OTP sent successfully to your email.",
-  });
+  return NextResponse.json({ ok: true, message: "OTP sent successfully to your email." });
 }

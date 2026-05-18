@@ -36,7 +36,7 @@ function connectorBackground(left: EditorStep, right: EditorStep): string {
   if (left.state === "upcoming") {
     return "#E5E7EB";
   }
-  return "linear-gradient(90deg, var(--brand-start), var(--brand-end))";
+  return "#e85025";
 }
 
 export function EditorProgressStepper({
@@ -75,7 +75,7 @@ export function EditorProgressStepper({
                 <div
                   className={`relative z-10 flex items-center justify-center rounded-full border-[var(--brand-end)] shadow-[var(--shadow-brand-glow)] transition-all duration-300 ${circleSm} ${circleBorder}`}
                   style={{
-                    background: "linear-gradient(135deg, var(--brand-start), var(--brand-end))",
+                    background: "#e85025",
                   }}
                 >
                   <CheckIcon className={`stroke-[2px] text-white ${checkSm}`} />

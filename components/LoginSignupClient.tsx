@@ -114,6 +114,13 @@ export function LoginSignupClient() {
   const [googleBtnVisible, setGoogleBtnVisible] = useState(false);
   const googleBtnRef = useRef<HTMLDivElement>(null);
 
+  // Redirect already-logged-in users away from the login page
+  useEffect(() => {
+    if (typeof window !== "undefined" && localStorage.getItem("pixvite_token")) {
+      router.replace("/");
+    }
+  }, [router]);
+
   // If the Google script was already loaded by a previous render (client-side nav),
   // window.google is already available — set ready immediately without waiting for onLoad.
   useEffect(() => {
@@ -424,8 +431,8 @@ export function LoginSignupClient() {
 
   const subtitle =
     mode === "login" ? "It sure is great to see you again." :
-    mode === "signup" ? "Sign up now and start your journey with Myvideoinvites (it's free)!" :
-    mode === "forgot-email" ? "Simply enter the email address you used to create your account, and we'll send you a one-time password (OTP) to reset your password." :
+    mode === "signup" ? "Create a free account and start making beautiful invites!" :
+    mode === "forgot-email" ? "Enter the email you used to create your account and we'll send you a reset OTP." :
     null;
 
   const showGoogleSection = mode === "login" || mode === "signup";
@@ -441,9 +448,9 @@ export function LoginSignupClient() {
         className="fixed inset-0 z-[999] overflow-y-auto"
         style={{ backgroundColor: "rgba(28, 39, 48, 0.5)", backdropFilter: "blur(4px)" }}
       >
-        <div className="flex min-h-full items-end justify-center sm:items-center sm:p-4">
-          <div className="relative w-full sm:max-w-[480px]">
-            <div className="relative rounded-t-2xl bg-white px-6 pb-8 pt-12 shadow-2xl sm:rounded-2xl sm:px-8">
+        <div className="flex min-h-full items-center justify-center px-4 pb-4 pt-24 sm:p-6">
+          <div className="relative w-full max-w-[480px]">
+            <div className="relative rounded-2xl bg-white px-5 pb-7 pt-11 shadow-2xl sm:px-8 sm:pb-8 sm:pt-12">
               <button
                 type="button"
                 aria-label="Close"
@@ -456,7 +463,7 @@ export function LoginSignupClient() {
               </button>
 
               <div className="mb-2 text-center">
-                <h2 className="whitespace-nowrap text-[18px] font-semibold leading-tight text-black sm:text-[22px]">{title}</h2>
+                <h2 className="text-[18px] font-semibold leading-tight text-black sm:text-[22px]">{title}</h2>
               </div>
 
               {subtitle && (
@@ -542,9 +549,9 @@ export function LoginSignupClient() {
                   </button>
 
                   <p className="mt-3 text-center text-[13px] text-black">
-                    New to Myvideoinvites?
-                    <button type="button" onClick={() => { setMode("signup"); setMessage(""); }} className="text-[#5961F8]">
-                      <span className="cursor-pointer"> Create an account</span>
+                    New to Myvideoinvites?{" "}
+                    <button type="button" onClick={() => { setMode("signup"); setMessage(""); }} className="cursor-pointer text-[#5961F8]">
+                      Create an account
                     </button>
                   </p>
                 </>
@@ -552,7 +559,7 @@ export function LoginSignupClient() {
 
               {/* ── SIGNUP ── */}
               {mode === "signup" && (
-                <form onSubmit={handleSignUp} className="flex flex-col gap-3">
+                <form onSubmit={handleSignUp} className="flex flex-col gap-2.5">
                   <FloatingInput
                     id="signup-name"
                     name="name"
@@ -629,7 +636,7 @@ export function LoginSignupClient() {
                     />
                   ) : null}
 
-                  <div className="flex items-start gap-2 pt-1">
+                  <div className="flex items-start gap-2">
                     <input
                       id="signup-terms"
                       type="checkbox"
@@ -637,15 +644,11 @@ export function LoginSignupClient() {
                       onChange={(e) => setAgreeTerms(e.target.checked)}
                       className="mt-0.5 h-4 w-4 shrink-0 rounded border border-gray-300 bg-gray-50"
                     />
-                    <label htmlFor="signup-terms" className="text-[12px] font-medium leading-snug sm:text-[14px]" style={{ color: "rgb(165, 170, 181)" }}>
-                      I agree to Myvideoinvites
-                      <span className="text-[#5961F8]">
-                        {" "}<Link href="/terms-conditions" target="_blank" rel="noopener noreferrer">Terms of Service</Link>{" "}
-                      </span>
-                      and
-                      <span className="text-[#5961F8]">
-                        {" "}<Link href="/privacy-policy" target="_blank" rel="noopener noreferrer">Privacy policy</Link>
-                      </span>
+                    <label htmlFor="signup-terms" className="text-[12px] leading-snug text-gray-500 sm:text-[13px]">
+                      I agree to Myvideoinvites{" "}
+                      <Link href="/terms-conditions" target="_blank" rel="noopener noreferrer" className="text-[#5961F8]">Terms of Service</Link>
+                      {" "}and{" "}
+                      <Link href="/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-[#5961F8]">Privacy Policy</Link>
                     </label>
                   </div>
 
@@ -668,9 +671,9 @@ export function LoginSignupClient() {
                   )}
 
                   <p className="mt-1 pb-1 text-center text-[13px] text-black">
-                    Already have an account?
-                    <button type="button" className="text-[#5961F8]" onClick={() => { setMode("login"); setMessage(""); }}>
-                      <span className="cursor-pointer"> Log in</span>
+                    Already have an account?{" "}
+                    <button type="button" className="cursor-pointer text-[#5961F8]" onClick={() => { setMode("login"); setMessage(""); }}>
+                      Log in
                     </button>
                   </p>
                 </form>

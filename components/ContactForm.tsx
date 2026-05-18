@@ -13,7 +13,9 @@ export function ContactForm() {
   const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");
   const [errors, setErrors] = useState<Errors>({});
+  const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
+  const [serverError, setServerError] = useState("");
 
   function validate() {
     const e: Errors = {};
@@ -26,17 +28,38 @@ export function ContactForm() {
     return Object.keys(e).length === 0;
   }
 
-  function handleSubmit(ev: React.FormEvent) {
+  async function handleSubmit(ev: { preventDefault(): void }) {
     ev.preventDefault();
     if (!validate()) return;
-    setSent(true);
+
+    setLoading(true);
+    setServerError("");
+    try {
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email, subject, message }),
+      });
+      const data = (await res.json()) as { ok?: boolean; message?: string };
+      if (!res.ok || !data.ok) {
+        setServerError(data.message ?? "Something went wrong. Please try again.");
+        return;
+      }
+      setSent(true);
+    } catch {
+      setServerError("Network error. Please check your connection and try again.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   if (sent) {
     return (
       <div className="rounded-lg border border-green-200 bg-green-50 px-6 py-10 text-center">
         <p className="font-heading text-lg font-semibold text-green-800">Message sent!</p>
-        <p className="mt-2 text-sm text-green-700">We&apos;ll get back to you soon.</p>
+        <p className="mt-2 text-sm text-green-700">
+          We&apos;ve also sent a confirmation to <strong>{email}</strong>. We&apos;ll get back to you soon.
+        </p>
       </div>
     );
   }
@@ -114,12 +137,17 @@ export function ContactForm() {
         {errors.message && <p className="mt-1 text-xs text-red-500">{errors.message}</p>}
       </div>
 
+      {serverError && (
+        <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{serverError}</p>
+      )}
+
       <button
         type="submit"
-        className="w-full rounded-lg px-6 py-3 font-semibold text-white transition-all duration-200 hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-        style={{ background: "#e85025", color: "#fff" }}
+        disabled={loading}
+        className="w-full rounded-lg px-6 py-3 font-semibold text-white transition-all duration-200 hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+        style={{ background: "#e85025" }}
       >
-        Send Message
+        {loading ? "Sending…" : "Send Message"}
       </button>
     </form>
   );
