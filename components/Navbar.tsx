@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
-import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 
 const touch = {
   touchAction: "manipulation" as const,
@@ -105,18 +105,17 @@ function NavDropdown({
   children: ReactNode;
 }) {
   return (
-    <div className="group relative touch-manipulation" style={touch}>
+    <div className="group relative" style={touch}>
       <button
         type="button"
-        className="flex touch-manipulation items-center gap-1 px-4 py-2 font-medium"
+        className="flex items-center gap-1 px-4 py-2 font-medium"
         style={touch}
-        aria-expanded="false"
         aria-haspopup="true"
       >
         {label}
         <ChevronDown />
       </button>
-      <div className="invisible absolute left-0 top-full z-[2000] mt-1 w-56 rounded-md border border-gray-200 bg-[var(--card-bg)] p-1 opacity-0 shadow-lg transition-all group-focus-within:pointer-events-auto group-focus-within:visible group-focus-within:opacity-100 group-hover:pointer-events-auto group-hover:visible group-hover:opacity-100">
+      <div className="invisible absolute left-0 top-full z-[2000] mt-1 w-56 rounded-md border border-gray-200 bg-[var(--card-bg)] p-1 opacity-0 shadow-lg transition-all group-hover:pointer-events-auto group-hover:visible group-hover:opacity-100">
         {children}
       </div>
     </div>
@@ -265,7 +264,7 @@ export function Navbar() {
     queueMicrotask(() => el?.focus());
   }, [searchOpen, mounted]);
 
-  function submitSearch(e: FormEvent) {
+  function submitSearch(e: { preventDefault(): void }) {
     e.preventDefault();
     const q = searchQuery.trim();
     closeSearch();

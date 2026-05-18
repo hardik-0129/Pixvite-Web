@@ -112,6 +112,20 @@ export function TemplateDetailForm({ template }: Props) {
   const [values, setValues] = useState<Record<string, string>>(initial);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+
+  // Keep isAuthenticated in sync with localStorage — same source of truth as the Navbar
+  useEffect(() => {
+    function sync() {
+      setIsAuthenticated(Boolean(localStorage.getItem("pixvite_token")));
+    }
+    sync();
+    window.addEventListener("storage", sync);
+    window.addEventListener("pixvite-auth-change", sync);
+    return () => {
+      window.removeEventListener("storage", sync);
+      window.removeEventListener("pixvite-auth-change", sync);
+    };
+  }, []);
   const [prefillProfile, setPrefillProfile] = useState<{ firstName?: string; lastName?: string; email?: string; phone?: string } | undefined>(undefined);
 
   const [renderOrderId, setRenderOrderId] = useState<string | null>(null);
@@ -155,16 +169,11 @@ export function TemplateDetailForm({ template }: Props) {
     let cancelled = false;
 
     async function loadDraft() {
+      if (!localStorage.getItem("pixvite_token")) return;
       try {
         const res = await fetch(`/api/drafts/${encodeURIComponent(template.id)}`);
-        if (res.status === 401) {
-          if (!cancelled) setIsAuthenticated(false);
-          return;
-        }
-        if (!cancelled) setIsAuthenticated(true);
-        if (res.status === 404) return;
         if (!res.ok) return;
-        const data = (await res.json()) as { values?: Record<string, string> };
+        const data = (await res.json()) as { values?: Record<string, string>; customAudioUrl?: string; audioFileName?: string };
         if (!data.values || cancelled) return;
         const next: Record<string, string> = {};
         Object.entries(data.values).forEach(([k, v]) => {
@@ -172,10 +181,14 @@ export function TemplateDetailForm({ template }: Props) {
         });
         if (!cancelled) {
           setValues((prev) => ({ ...prev, ...next }));
+          if (data.customAudioUrl) {
+            setCustomAudioUrl(data.customAudioUrl);
+            setAudioFileName(data.audioFileName ?? "");
+          }
           toast.success("Loaded saved draft");
         }
       } catch {
-        if (!cancelled) setIsAuthenticated(false);
+        // ignore
       }
     }
 
@@ -273,14 +286,21 @@ export function TemplateDetailForm({ template }: Props) {
       fetch("/api/drafts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ templateId: template.id, values }),
+        body: JSON.stringify({ templateId: template.id, values, customAudioUrl: customAudioUrl ?? "", audioFileName }),
       }).catch(() => {});
     }, 700);
     return () => window.clearTimeout(id);
-  }, [isAuthenticated, values, template.id]);
+  }, [isAuthenticated, values, template.id, customAudioUrl, audioFileName]);
 
   const onResetDefaults = () => {
     setValues(initial);
+    setCustomAudioUrl(null);
+    setAudioFileName("");
+    if (audioBlobRef.current) {
+      URL.revokeObjectURL(audioBlobRef.current);
+      audioBlobRef.current = null;
+    }
+    setAudioBlobUrl(null);
     toast.success("Reset to default");
     if (isAuthenticated) {
       fetch(`/api/drafts/${encodeURIComponent(template.id)}`, { method: "DELETE" }).catch(() => {});
@@ -295,7 +315,7 @@ export function TemplateDetailForm({ template }: Props) {
     fetch("/api/drafts", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ templateId: template.id, values }),
+      body: JSON.stringify({ templateId: template.id, values, customAudioUrl: customAudioUrl ?? "", audioFileName }),
     })
       .then((res) => { if (res.ok) toast.success("Draft saved successfully."); else toast.error("Could not save draft"); })
       .catch(() => toast.error("Could not save draft"));
@@ -693,7 +713,13 @@ export function TemplateDetailForm({ template }: Props) {
               </button>
               <button
                 type="button"
-                onClick={() => setCheckoutOpen(true)}
+                onClick={() => {
+                  if (!isAuthenticated) {
+                    router.push("/login");
+                    return;
+                  }
+                  setCheckoutOpen(true);
+                }}
                 className="font-body text-white flex-[2] inline-flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold text-white shadow-md transition hover:opacity-95 hover:shadow-lg"
                 style={{ background: "#e85025", color: "white" }}
               >

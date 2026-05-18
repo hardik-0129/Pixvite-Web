@@ -7,18 +7,30 @@ type UserDraftDoc = {
   templateId: string;
   values: Record<string, string>;
   savedAt: string;
+  customAudioUrl?: string;
+  audioFileName?: string;
 };
 
 export async function upsertDraft(
   userEmail: string,
   templateId: string,
-  values: Record<string, string>
+  values: Record<string, string>,
+  audio?: { customAudioUrl?: string; audioFileName?: string }
 ): Promise<void> {
   const db = await getDb();
   const savedAt = new Date().toISOString();
   await db.collection<UserDraftDoc>(COLLECTION).updateOne(
     { userEmail, templateId },
-    { $set: { userEmail, templateId, values, savedAt } },
+    {
+      $set: {
+        userEmail,
+        templateId,
+        values,
+        savedAt,
+        customAudioUrl: audio?.customAudioUrl ?? "",
+        audioFileName: audio?.audioFileName ?? "",
+      },
+    },
     { upsert: true }
   );
 }
@@ -26,13 +38,18 @@ export async function upsertDraft(
 export async function getDraft(
   userEmail: string,
   templateId: string
-): Promise<{ values: Record<string, string>; savedAt: string } | null> {
+): Promise<{ values: Record<string, string>; savedAt: string; customAudioUrl?: string; audioFileName?: string } | null> {
   const db = await getDb();
   const doc = await db
     .collection<UserDraftDoc>(COLLECTION)
-    .findOne({ userEmail, templateId }, { projection: { values: 1, savedAt: 1, _id: 0 } });
+    .findOne({ userEmail, templateId }, { projection: { values: 1, savedAt: 1, customAudioUrl: 1, audioFileName: 1, _id: 0 } });
   if (!doc) return null;
-  return { values: doc.values, savedAt: doc.savedAt };
+  return {
+    values: doc.values,
+    savedAt: doc.savedAt,
+    customAudioUrl: doc.customAudioUrl,
+    audioFileName: doc.audioFileName,
+  };
 }
 
 export async function listDrafts(

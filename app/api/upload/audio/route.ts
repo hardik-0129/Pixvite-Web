@@ -40,5 +40,5 @@ export async function POST(request: Request) {
   const bytes = await file.arrayBuffer();
   await writeFile(join(uploadDir, filename), Buffer.from(bytes));
 
-  return NextResponse.json({ url: `/uploads/audio/${filename}`, name: file.name });
+  return NextResponse.json({ url: `/api/uploads/audio/${filename}`, name: file.name });
 }

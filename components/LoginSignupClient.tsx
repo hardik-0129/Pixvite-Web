@@ -45,23 +45,6 @@ function EyeToggleIcon({ open }: { open: boolean }) {
   );
 }
 
-function GoogleFallbackButton({ onClick }: { onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="flex h-11 items-center gap-3 rounded-md border border-gray-300 bg-white px-4 text-[14px] font-medium text-[#1f2937] shadow-[0_1px_2px_rgba(0,0,0,0.05)] transition hover:bg-gray-50"
-    >
-      <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden>
-        <path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.962 3.046l5.682-5.682C34.068 6.068 29.379 4 24 4 16.047 4 9.074 10.074 9.074 18S16.047 32 24 32c11.05 0 18.074-10.074 18.074-18 0-1.14-.098-2.274-.463-3.917z" />
-        <path fill="#FF3D00" d="m6.306 14.691 6.571 4.819C14.463 17.074 18.961 13 24 13c3.059 0 5.842 1.155 7.962 3.046l5.682-5.682C34.069 6.068 29.379 4 24 4 16.34 4 10.067 9.114 6.306 14.691z" />
-        <path fill="#4CAF50" d="M24 44c5.074 0 9.849-2.004 13.478-5.591l-6.069-5.092C29.834 34.959 26.957 37 23.95 37c-4.11 0-7.6-2.702-8.849-6.459L6.089 34.957C10.069 41.086 15.956 44 24 44z" />
-        <path fill="#1976D2" d="M43.611 20.083 42 20H24v8h11.303a12.072 12.072 0 01-5.069 8.086l-.003-.002 6.07 5.086C41.086 43.068 43.611 20.083 43.611 20.083" />
-      </svg>
-      Sign in with Google
-    </button>
-  );
-}
 
 const primaryActionClass =
   "bg_linear inline-flex w-full cursor-pointer items-center justify-center rounded-[10px] border-0 px-3 py-2.5 text-center text-[14px] font-semibold leading-tight !text-white shadow-sm transition-[filter,box-shadow] disabled:cursor-not-allowed [--tw-text-opacity:1]";
@@ -77,6 +60,7 @@ function FloatingInput({
   required,
   rightElement,
   inputMode,
+  preventAutofill,
 }: {
   id: string;
   name?: string;
@@ -88,32 +72,35 @@ function FloatingInput({
   required?: boolean;
   rightElement?: ReactNode;
   inputMode?: "text" | "numeric" | "email" | "search" | "tel" | "url" | "decimal" | "none";
+  preventAutofill?: boolean;
 }) {
+  const [readOnly, setReadOnly] = useState(!!preventAutofill);
+
   return (
-    <div className="relative">
-      <input
-        id={id}
-        name={name}
-        type={type}
-        autoComplete={autoComplete}
-        required={required}
-        placeholder=" "
-        value={value}
-        onChange={onChange}
-        inputMode={inputMode}
-        className={`peer w-full h-[50px] rounded-[10px] border border-[#b8c5d8] bg-[#f0f5fb] px-[14px] pt-[18px] pb-[2px] text-[14px] text-[#1c3048] outline-none transition-all placeholder-transparent shadow-[inset_0_1px_2px_rgba(255,255,255,0.85),0_1px_3px_rgba(15,23,42,0.08)] focus:border-[#5961F8] focus:bg-white focus:shadow-[0_0_0_3px_rgba(89,97,248,0.2),0_2px_8px_rgba(15,23,42,0.08)]${rightElement ? " pr-[47px]" : ""}`}
-      />
-      <label
-        htmlFor={id}
-        className="pointer-events-none absolute left-[14px] text-[#A5AAB5] transition-all duration-150 top-[7px] text-[11px] font-medium peer-placeholder-shown:top-1/2 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:text-[14px] peer-placeholder-shown:font-normal peer-focus:!top-[7px] peer-focus:!-translate-y-0 peer-focus:!text-[11px] peer-focus:!font-medium"
-      >
+    <div className="flex flex-col gap-1">
+      <label htmlFor={id} className="text-[12px] font-semibold text-[#1c3048]">
         {label}
       </label>
-      {rightElement && (
-        <div className="absolute bottom-0 right-2 top-0 flex items-center">
-          {rightElement}
-        </div>
-      )}
+      <div className="relative">
+        <input
+          id={id}
+          name={name}
+          type={type}
+          autoComplete={autoComplete ?? "off"}
+          required={required}
+          readOnly={readOnly}
+          onFocus={() => { if (readOnly) setReadOnly(false); }}
+          value={value}
+          onChange={onChange}
+          inputMode={inputMode}
+          className={`w-full h-[46px] rounded-[10px] border border-[#b8c5d8] bg-[#f0f5fb] px-[14px] text-[14px] text-[#1c3048] outline-none transition-all shadow-[inset_0_1px_2px_rgba(255,255,255,0.85),0_1px_3px_rgba(15,23,42,0.08)] focus:border-[#5961F8] focus:bg-white focus:shadow-[0_0_0_3px_rgba(89,97,248,0.2),0_2px_8px_rgba(15,23,42,0.08)]${rightElement ? " pr-[47px]" : ""}`}
+        />
+        {rightElement && (
+          <div className="absolute bottom-0 right-2 top-0 flex items-center">
+            {rightElement}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -124,7 +111,16 @@ export function LoginSignupClient() {
 
   const [mode, setMode] = useState<Mode>("login");
   const [googleReady, setGoogleReady] = useState(false);
+  const [googleBtnVisible, setGoogleBtnVisible] = useState(false);
   const googleBtnRef = useRef<HTMLDivElement>(null);
+
+  // If the Google script was already loaded by a previous render (client-side nav),
+  // window.google is already available — set ready immediately without waiting for onLoad.
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.google) {
+      setGoogleReady(true);
+    }
+  }, []);
 
   // Login state
   const [loginEmail, setLoginEmail] = useState("");
@@ -211,6 +207,7 @@ export function LoginSignupClient() {
       width: 240,
       text: "signin_with",
     });
+    setGoogleBtnVisible(true);
   }, [googleReady, mode, handleGoogleCredential]);
 
   async function sendOtp(email: string) {
@@ -459,7 +456,7 @@ export function LoginSignupClient() {
               </button>
 
               <div className="mb-2 text-center">
-                <h2 className="text-[22px] font-semibold leading-tight text-black sm:text-[26px]">{title}</h2>
+                <h2 className="whitespace-nowrap text-[18px] font-semibold leading-tight text-black sm:text-[22px]">{title}</h2>
               </div>
 
               {subtitle && (
@@ -472,18 +469,16 @@ export function LoginSignupClient() {
                 <>
                   <div className="mb-4 flex justify-center">
                     <div className="flex h-[44px] items-center justify-center">
-                      {process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ? (
-                        <div ref={googleBtnRef} className="flex items-center justify-center [&>div]:justify-center" />
-                      ) : (
-                        <GoogleFallbackButton onClick={() => setMessage("Add NEXT_PUBLIC_GOOGLE_CLIENT_ID to enable Google.")} />
-                      )}
+                      <div ref={googleBtnRef} className="flex items-center justify-center [&>div]:justify-center" />
                     </div>
                   </div>
-                  <div className="mb-5 flex items-center gap-3">
-                    <div className="h-px flex-1 bg-[#ABB2C7]" />
-                    <p className="text-[14px] text-black sm:text-[16px]">or</p>
-                    <div className="h-px flex-1 bg-[#ABB2C7]" />
-                  </div>
+                  {googleBtnVisible && (
+                    <div className="mb-5 flex items-center gap-3">
+                      <div className="h-px flex-1 bg-[#ABB2C7]" />
+                      <p className="text-[14px] text-black sm:text-[16px]">or</p>
+                      <div className="h-px flex-1 bg-[#ABB2C7]" />
+                    </div>
+                  )}
                 </>
               )}
 
@@ -491,25 +486,30 @@ export function LoginSignupClient() {
               {mode === "login" && (
                 <>
                   <form ref={loginFormRef} onSubmit={handleSignIn} className="flex flex-col gap-3" autoComplete="off">
+                    {/* Hidden dummy inputs absorb browser autofill before the real fields */}
+                    <input type="text" style={{ display: "none" }} aria-hidden="true" readOnly tabIndex={-1} />
+                    <input type="password" style={{ display: "none" }} aria-hidden="true" readOnly tabIndex={-1} />
                     <FloatingInput
                       id="login-email"
-                      name="email"
+                      name="login-email-field"
                       label="Email"
                       type="email"
                       autoComplete="off"
                       value={loginEmail}
                       onChange={(e) => setLoginEmail(e.target.value)}
                       required
+                      preventAutofill
                     />
                     <FloatingInput
                       id="login-password"
-                      name="password"
+                      name="login-password-field"
                       label="Password"
                       type={showLoginPassword ? "text" : "password"}
                       autoComplete="off"
                       value={loginPassword}
                       onChange={(e) => setLoginPassword(e.target.value)}
                       required
+                      preventAutofill
                       rightElement={
                         <button
                           type="button"
