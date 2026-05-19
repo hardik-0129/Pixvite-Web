@@ -41,10 +41,19 @@ function HoverPreviewSpinner() {
   );
 }
 
+function formatDuration(seconds: number): string {
+  const s = Math.round(seconds);
+  if (s >= 60) {
+    const m = Math.floor(s / 60);
+    const r = s % 60;
+    return r > 0 ? `${m}m ${r}s` : `${m}m`;
+  }
+  return `${s}s`;
+}
+
 export function TemplateCard({ template }: Props) {
-  const { id, title, category, subcategory, functions, duration, price, originalPrice, thumbnail, previewVideoUrl } = template;
+  const { id, title, category, subcategory, duration, price, originalPrice, thumbnail, previewVideoUrl } = template;
   const fallbackThumb = "https://picsum.photos/seed/pixvite-template/400/711";
-  const showFunctionsLine = functions >= 3;
   const showSubLine =
     subcategory &&
     subcategory !== title &&
@@ -55,6 +64,7 @@ export function TemplateCard({ template }: Props) {
   const [videoReady, setVideoReady] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
   const [thumbSrc, setThumbSrc] = useState(thumbnail || fallbackThumb);
+  const [videoDuration, setVideoDuration] = useState<string | null>(null);
 
   useEffect(() => {
     setThumbSrc(thumbnail || fallbackThumb);
@@ -131,6 +141,19 @@ export function TemplateCard({ template }: Props) {
         />
       ) : null}
 
+      {previewVideoUrl && videoDuration === null ? (
+        // eslint-disable-next-line jsx-a11y/media-has-caption
+        <video
+          src={previewVideoUrl}
+          preload="metadata"
+          style={{ display: "none" }}
+          onLoadedMetadata={(e) => {
+            const dur = (e.currentTarget as HTMLVideoElement).duration;
+            if (Number.isFinite(dur) && dur > 0) setVideoDuration(formatDuration(dur));
+          }}
+        />
+      ) : null}
+
       {showHoverSpinner ? <HoverPreviewSpinner /> : null}
 
       <button
@@ -157,14 +180,13 @@ export function TemplateCard({ template }: Props) {
           className="pointer-events-auto line-clamp-2 cursor-pointer text-sm font-semibold text-white drop-shadow sm:text-base"
           style={{ fontFamily: "var(--font-header)" }}
         >
-          {id} | {title}
+          {title}
         </div>
         {showSubLine ? (
           <p className="pointer-events-auto line-clamp-2 truncate text-xs text-white/80 drop-shadow">{subcategory}</p>
         ) : null}
-        <div className="space-y-0.5 text-xs text-white/80">
-          {showFunctionsLine ? <p className="pointer-events-auto">{functions} Functions</p> : null}
-          <p className="pointer-events-auto">Dur: {duration}</p>
+        <div className="text-xs text-white/80">
+          <p className="pointer-events-auto">Dur: {videoDuration ?? duration}</p>
         </div>
         <div className="pointer-events-auto mt-auto flex min-w-0 items-end justify-start pt-1 sm:pt-2">
           <div className="flex min-w-0 items-center gap-1 sm:gap-1.5">

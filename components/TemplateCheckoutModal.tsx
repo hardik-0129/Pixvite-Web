@@ -38,6 +38,8 @@ type Props = {
   fieldValues?: Record<string, string>;
   customAudioUrl?: string | null;
   prefill?: PrefillData;
+  /** When true, shows a password field and auto-creates an account before payment. */
+  isGuestCheckout?: boolean;
   /** Called after the server verifies the Razorpay signature (payment succeeded). */
   onPaymentSuccess?: (payload: { paymentId: string; orderId: string }) => void;
 };
@@ -54,15 +56,18 @@ type AppliedPricing = {
   totalInr: number;
 };
 
-export function TemplateCheckoutModal({ open, onClose, template, fieldValues, customAudioUrl, prefill, onPaymentSuccess }: Props) {
+export function TemplateCheckoutModal({ open, onClose, template, fieldValues, customAudioUrl, prefill, isGuestCheckout, onPaymentSuccess }: Props) {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [password, setPassword] = useState("");
   const [coupon, setCoupon] = useState("");
   const [pricing, setPricing] = useState<AppliedPricing | null>(null);
   const [couponApplying, setCouponApplying] = useState(false);
   const [couponApplyMsg, setCouponApplyMsg] = useState<string | null>(null);
+  const [emailAlreadyExists, setEmailAlreadyExists] = useState(false);
+  const [emailChecking, setEmailChecking] = useState(false);
   const [checkoutInProgress, setCheckoutInProgress] = useState(false);
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
@@ -102,10 +107,13 @@ export function TemplateCheckoutModal({ open, onClose, template, fieldValues, cu
       setLastName("");
       setEmail("");
       setPhone("");
+      setPassword("");
       setCoupon("");
       setPricing(null);
       setCouponApplying(false);
       setCouponApplyMsg(null);
+      setEmailAlreadyExists(false);
+      setEmailChecking(false);
       setCheckoutInProgress(false);
       setPaymentError(null);
       setPaymentSuccess(false);
@@ -119,10 +127,42 @@ export function TemplateCheckoutModal({ open, onClose, template, fieldValues, cu
 
   if (!open) return null;
 
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+  const phoneDigits = phone.replace(/\D/g, "");
+  const baseFieldsOk =
+    !!firstName.trim() && !!lastName.trim() && emailValid && phoneDigits.length >= 10;
+  const guestOk = !isGuestCheckout || (password.length >= 8 && !emailAlreadyExists && !emailChecking);
+  const couponOk = !coupon.trim() || !!pricing;
+  const isFormReady = baseFieldsOk && guestOk && couponOk;
+
   const display = (v: string) => (v.trim() ? v.trim() : "–");
   const lineTitle = `${template.id} | ${template.title}`;
   const subtotal = template.price;
   const total = pricing?.totalInr ?? subtotal;
+
+  async function checkEmailExists(value: string) {
+    if (!isGuestCheckout) return;
+    const trimmed = value.trim();
+    const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed);
+    if (!emailOk) return;
+    setEmailChecking(true);
+    setEmailAlreadyExists(false);
+    try {
+      const res = await fetch(withBackendPrefix("/api/auth/check-email"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: trimmed }),
+      });
+      const data: unknown = await res.json().catch(() => null);
+      if (res.ok && typeof data === "object" && data !== null && "exists" in data) {
+        setEmailAlreadyExists(!!(data as { exists: boolean }).exists);
+      }
+    } catch {
+      // silent — user will still get the error on Pay click
+    } finally {
+      setEmailChecking(false);
+    }
+  }
 
   async function onApplyCoupon() {
     const c = coupon.trim();
@@ -188,6 +228,14 @@ export function TemplateCheckoutModal({ open, onClose, template, fieldValues, cu
       setPaymentError("Please fill in all fields.");
       return;
     }
+    if (isGuestCheckout && !password.trim()) {
+      setPaymentError("Please enter a password to create your account.");
+      return;
+    }
+    if (isGuestCheckout && password.length < 8) {
+      setPaymentError("Password must be at least 8 characters.");
+      return;
+    }
     const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
     if (!emailOk) {
       setPaymentError("Please enter a valid email address.");
@@ -197,6 +245,58 @@ export function TemplateCheckoutModal({ open, onClose, template, fieldValues, cu
     if (digits.length < 10) {
       setPaymentError("Please enter a valid phone number (at least 10 digits).");
       return;
+    }
+
+    // For guest checkout, auto-create account before proceeding to payment
+    if (isGuestCheckout) {
+      if (mountedRef.current) setCheckoutInProgress(true);
+      try {
+        const regRes = await fetch(withBackendPrefix("/api/auth/auto-register"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            firstName: firstName.trim(),
+            lastName: lastName.trim(),
+            email: email.trim(),
+            phone: digits,
+            password,
+          }),
+        });
+        const regData: unknown = await regRes.json().catch(() => null);
+        if (!regRes.ok) {
+          const errCode =
+            typeof regData === "object" && regData !== null && "error" in regData
+              ? (regData as { error: string }).error
+              : null;
+          const errMsg =
+            typeof regData === "object" && regData !== null && "message" in regData
+              ? (regData as { message: string }).message
+              : errCode === "EMAIL_ALREADY_REGISTERED"
+                ? "This email is already registered. Please login first or use a different email."
+                : "Could not create your account. Try again.";
+          if (mountedRef.current) {
+            setPaymentError(errMsg);
+            setCheckoutInProgress(false);
+          }
+          return;
+        }
+        // Store JWT so the user is logged in after payment
+        const token =
+          typeof regData === "object" && regData !== null && "token" in regData
+            ? (regData as { token: string }).token
+            : null;
+        if (token) {
+          localStorage.setItem("pixvite_token", token);
+          window.dispatchEvent(new Event("pixvite-auth-change"));
+        }
+      } catch {
+        if (mountedRef.current) {
+          setPaymentError("Network error — could not create account. Try again.");
+          setCheckoutInProgress(false);
+        }
+        return;
+      }
+      if (mountedRef.current) setCheckoutInProgress(false);
     }
 
     let sessionClosed = false;
@@ -399,16 +499,28 @@ export function TemplateCheckoutModal({ open, onClose, template, fieldValues, cu
                       onChange={(e) => setLastName(e.target.value)}
                     />
                   </div>
-                  <input
-                    autoComplete="off"
-                    data-lpignore="true"
-                    data-1p-ignore="true"
-                    className="rounded-lg border border-[var(--border-card)] bg-white p-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-end)] xs:rounded-md xs:p-2.5 xs:text-base"
-                    placeholder="your@email.com"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                  />
+                  <div className="flex flex-col gap-1">
+                    <input
+                      autoComplete="off"
+                      data-lpignore="true"
+                      data-1p-ignore="true"
+                      className={`rounded-lg border bg-white p-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-end)] xs:rounded-md xs:p-2.5 xs:text-base ${emailAlreadyExists ? "border-red-400 ring-1 ring-red-400" : "border-[var(--border-card)]"}`}
+                      placeholder="your@email.com"
+                      type="email"
+                      value={email}
+                      onChange={(e) => { setEmail(e.target.value); setEmailAlreadyExists(false); }}
+                      onBlur={(e) => void checkEmailExists(e.target.value)}
+                    />
+                    {emailAlreadyExists ? (
+                      <p className="text-xs text-red-600" role="alert">
+                        This email is already registered.{" "}
+                        <a href="/login" className="font-semibold underline">Login first</a>
+                        {" "}or use a different email.
+                      </p>
+                    ) : emailChecking ? (
+                      <p className="text-xs text-[var(--text-muted)]">Checking email…</p>
+                    ) : null}
+                  </div>
                   <input
                     autoComplete="off"
                     data-lpignore="true"
@@ -419,8 +531,28 @@ export function TemplateCheckoutModal({ open, onClose, template, fieldValues, cu
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                   />
+                  {isGuestCheckout ? (
+                    <input
+                      autoComplete="new-password"
+                      data-lpignore="true"
+                      data-1p-ignore="true"
+                      className="rounded-lg border border-[var(--border-card)] bg-white p-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-end)] xs:rounded-md xs:p-2.5 xs:text-base"
+                      placeholder="Create Password (min. 8 characters)"
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                    />
+                  ) : null}
                 </div>
               </form>
+              {isGuestCheckout && !paymentSuccess ? (
+                <p className="text-xs text-[var(--text-muted)] xs:text-sm">
+                  A new account will be created with this email. Already have an account?{" "}
+                  <a href="/login" className="font-semibold text-[var(--brand-end)] hover:underline">
+                    Login first
+                  </a>
+                </p>
+              ) : null}
               <div className={`flex gap-2 xs:gap-2.5 ${paymentSuccess ? "pointer-events-none opacity-50" : ""}`}>
                 <input
                   className="flex-1 rounded-lg border border-[var(--border-card)] bg-white p-2 text-sm uppercase text-[var(--text-primary)] placeholder:normal-case placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-end)] xs:rounded-md xs:p-2.5 xs:text-base"
@@ -507,7 +639,7 @@ export function TemplateCheckoutModal({ open, onClose, template, fieldValues, cu
           <div className="sticky bottom-0 left-0 right-0 z-10 mt-auto flex flex-col gap-2 border-t border-[var(--border-card)] bg-white px-4 py-2.5 xs:flex-row xs:gap-2.5 xs:px-5 xs:py-3 sm:px-6 sm:py-3.5">
             <button
               type="button"
-              disabled={checkoutInProgress || paymentSuccess}
+              disabled={!isFormReady || checkoutInProgress || paymentSuccess}
               className="flex-1 rounded-lg py-2.5 text-sm font-semibold text-white shadow-md transition hover:opacity-95 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60 xs:rounded-md xs:py-3 xs:text-base"
               style={{
                 background: "#e85025", color: "#fff"

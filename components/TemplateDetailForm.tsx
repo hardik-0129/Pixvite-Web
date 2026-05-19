@@ -408,7 +408,8 @@ export function TemplateDetailForm({ template }: Props) {
         template={template}
         fieldValues={values}
         customAudioUrl={customAudioUrl}
-        prefill={prefillProfile}
+        prefill={isAuthenticated ? prefillProfile : undefined}
+        isGuestCheckout={!isAuthenticated}
         onPaymentSuccess={handlePaymentVerified}
       />
 
@@ -714,10 +715,6 @@ export function TemplateDetailForm({ template }: Props) {
               <button
                 type="button"
                 onClick={() => {
-                  if (!isAuthenticated) {
-                    router.push("/login");
-                    return;
-                  }
                   setCheckoutOpen(true);
                 }}
                 className="font-body text-white flex-[2] inline-flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold text-white shadow-md transition hover:opacity-95 hover:shadow-lg"
