@@ -17,7 +17,7 @@ export function VideoPlayer() {
         >
           <div className="pointer-events-none absolute inset-0 flex flex-wrap content-center items-center justify-center gap-6 p-4 text-[10px] text-white/[0.12]">
             {Array.from({ length: 12 }).map((_, i) => (
-              <span key={i}>pixvite.com</span>
+              <span key={i}> InvitesMagic .com</span>
             ))}
           </div>
           <button

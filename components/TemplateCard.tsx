@@ -70,6 +70,21 @@ export function TemplateCard({ template }: Props) {
     setThumbSrc(thumbnail || fallbackThumb);
   }, [thumbnail]);
 
+  useEffect(() => {
+    if (!previewVideoUrl) return;
+    const v = document.createElement("video");
+    v.preload = "metadata";
+    v.muted = true;
+    v.onloadedmetadata = () => {
+      const dur = v.duration;
+      if (Number.isFinite(dur) && dur > 0) setVideoDuration(formatDuration(dur));
+      v.src = "";
+    };
+    v.onerror = () => { v.src = ""; };
+    v.src = previewVideoUrl;
+    return () => { v.onloadedmetadata = null; v.onerror = null; v.src = ""; };
+  }, [previewVideoUrl]);
+
   const handlePointerEnter = useCallback(() => {
     if (!previewVideoUrl) return;
     setHoverPreview(true);
@@ -141,20 +156,7 @@ export function TemplateCard({ template }: Props) {
         />
       ) : null}
 
-      {previewVideoUrl && videoDuration === null ? (
-        // eslint-disable-next-line jsx-a11y/media-has-caption
-        <video
-          src={previewVideoUrl}
-          preload="metadata"
-          style={{ display: "none" }}
-          onLoadedMetadata={(e) => {
-            const dur = (e.currentTarget as HTMLVideoElement).duration;
-            if (Number.isFinite(dur) && dur > 0) setVideoDuration(formatDuration(dur));
-          }}
-        />
-      ) : null}
-
-      {showHoverSpinner ? <HoverPreviewSpinner /> : null}
+{showHoverSpinner ? <HoverPreviewSpinner /> : null}
 
       <button
         type="button"

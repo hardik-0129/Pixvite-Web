@@ -128,7 +128,7 @@ type MobileSection = { id: string; title: string; links: MobileLink[] };
 
 const popularSearchTerms = ["Wedding", "Engagement", "Birthday", "Baby"] as const;
 
-const mobileMenuSections: MobileSection[] = [
+const DEFAULT_MOBILE_SECTIONS: MobileSection[] = [
   {
     id: "wedding",
     title: "Wedding",
@@ -196,6 +196,18 @@ export function Logo() {
   );
 }
 
+type NavItemData = {
+  _id?: string;
+  label: string;
+  type: "dropdown" | "link";
+  href?: string;
+  icon?: string;
+  highlightColor?: string;
+  isVisible: boolean;
+  children?: { id: string; label: string; href: string; sortOrder: number }[];
+  sortOrder: number;
+};
+
 export function Navbar() {
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -204,6 +216,7 @@ export function Navbar() {
   const [mounted, setMounted] = useState(false);
   const [openSection, setOpenSection] = useState<string | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [navItems, setNavItems] = useState<NavItemData[]>([]);
 
   const closeMobile = useCallback(() => {
     setMobileOpen(false);
@@ -236,6 +249,15 @@ export function Navbar() {
       window.removeEventListener("storage", syncAuthFromLocalStorage);
       window.removeEventListener("pixvite-auth-change", syncAuthFromLocalStorage);
     };
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/nav")
+      .then((r) => r.json())
+      .then((d: { items?: NavItemData[] }) => {
+        if (Array.isArray(d.items) && d.items.length > 0) setNavItems(d.items);
+      })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -316,25 +338,34 @@ export function Navbar() {
           </div>
 
           <nav className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-2 pb-6 pt-2">
-            {mobileMenuSections.map((section) => {
-              const open = openSection === section.id;
+            {(navItems.length > 0 ? navItems : DEFAULT_MOBILE_SECTIONS.map((s) => ({
+              _id: s.id,
+              label: s.title,
+              type: "dropdown" as const,
+              isVisible: true,
+              sortOrder: 0,
+              children: s.links.map((l, i) => ({ id: l.href, label: l.label, href: l.href, sortOrder: i })),
+            }))).filter((item) => item.type === "dropdown").map((item) => {
+              const sectionId = item._id ?? item.label;
+              const open = openSection === sectionId;
+              const sortedChildren = [...(item.children ?? [])].sort((a, b) => a.sortOrder - b.sortOrder);
               return (
-                <div key={section.id} className="border-b border-gray-100 last:border-b-0">
+                <div key={sectionId} className="border-b border-gray-100 last:border-b-0">
                   <button
                     type="button"
                     className="flex w-full touch-manipulation items-center justify-between gap-2 px-3 py-3.5 text-left"
                     style={touch}
                     aria-expanded={open}
-                    onClick={() => toggleSection(section.id)}
+                    onClick={() => toggleSection(sectionId)}
                   >
-                    <span className="font-heading text-base font-semibold text-[var(--foreground)]">{section.title}</span>
+                    <span className="font-heading text-base font-semibold text-[var(--foreground)]">{item.label}</span>
                     <ChevronDown className="h-5 w-5 text-gray-500" flipped={open} />
                   </button>
                   {open && (
                     <div className="border-t border-gray-50 bg-gray-50/60 px-2 py-2">
-                      {section.links.map((link) => (
-                        <DropdownLink key={link.href} href={link.href} onNavigate={closeMobile} className="text-[var(--foreground)]">
-                          {link.label}
+                      {sortedChildren.map((ch) => (
+                        <DropdownLink key={ch.id} href={ch.href} onNavigate={closeMobile} className="text-[var(--foreground)]">
+                          {ch.label}
                         </DropdownLink>
                       ))}
                     </div>
@@ -344,28 +375,35 @@ export function Navbar() {
             })}
 
             <div className="mt-4 flex flex-col gap-3 px-2">
-              <Link
-                href="/festival-bundles"
-                className="rounded-full py-3.5 text-center text-sm font-semibold text-white shadow-sm transition hover:opacity-95"
-                style={{ background: "#e85025" }}
-                onClick={closeMobile}
-              >
-                🎉 Festival Bundles
-              </Link>
-              <Link
-                href="/about-us"
-                className="py-2 text-center text-sm font-medium text-[var(--text-secondary)] transition hover:text-[var(--foreground)]"
-                onClick={closeMobile}
-              >
-                About
-              </Link>
-              <Link
-                href="/contact"
-                className="py-2 text-center text-sm font-medium text-[var(--text-secondary)] transition hover:text-[var(--foreground)]"
-                onClick={closeMobile}
-              >
-                Contact
-              </Link>
+              {(navItems.length > 0 ? navItems : [
+                { _id: "fb", label: "Festival Bundles", type: "link" as const, href: "/festival-bundles", icon: "🎉", highlightColor: "#e85025", isVisible: true, sortOrder: 5 },
+                { _id: "about", label: "About", type: "link" as const, href: "/about-us", isVisible: true, sortOrder: 6 },
+                { _id: "contact", label: "Contact", type: "link" as const, href: "/contact", isVisible: true, sortOrder: 7 },
+              ]).filter((item) => item.type === "link").map((item) => {
+                if (item.highlightColor) {
+                  return (
+                    <Link
+                      key={item._id ?? item.label}
+                      href={item.href ?? "/"}
+                      className="rounded-full py-3.5 text-center text-sm font-semibold text-white shadow-sm transition hover:opacity-95"
+                      style={{ background: item.highlightColor }}
+                      onClick={closeMobile}
+                    >
+                      {item.icon ? `${item.icon} ` : ""}{item.label}
+                    </Link>
+                  );
+                }
+                return (
+                  <Link
+                    key={item._id ?? item.label}
+                    href={item.href ?? "/"}
+                    className="py-2 text-center text-sm font-medium text-[var(--text-secondary)] transition hover:text-[var(--foreground)]"
+                    onClick={closeMobile}
+                  >
+                    {item.icon ? `${item.icon} ` : ""}{item.label}
+                  </Link>
+                );
+              })}
               {isAuthenticated ? (
                 <>
                   <Link
@@ -489,57 +527,43 @@ export function Navbar() {
 
           <div className="hidden items-center gap-2 overflow-visible sm:gap-3 md:gap-4 lg:flex">
             <div className="flex items-center gap-1">
-              <NavDropdown label="Wedding">
-                <DropdownLink href="/category?category=Wedding" className="font-medium">
-                  All
-                </DropdownLink>
-                <DropdownLink href="/category?category=Wedding&subcategory=Wedding%20Invitation">Wedding Invitation</DropdownLink>
-                <DropdownLink href="/category?category=Wedding&subcategory=Save%20The%20Date">Save The Date</DropdownLink>
-              </NavDropdown>
-
-              <NavDropdown label="Engagement">
-                <DropdownLink href="/category?category=Engagement" className="font-medium">
-                  All
-                </DropdownLink>
-                <DropdownLink href="/category?category=Engagement&subcategory=Engagement%20Invitation">Engagement Invitation</DropdownLink>
-              </NavDropdown>
-
-              <NavDropdown label="Birthday">
-                <DropdownLink href="/category?category=Birthday" className="font-medium">
-                  All
-                </DropdownLink>
-                <DropdownLink href="/category?category=Birthday&subcategory=Birthday%20Invitation">Birthday Invitation</DropdownLink>
-              </NavDropdown>
-
-              <NavDropdown label="More">
-                <DropdownLink href="/category?category=Baby">Baby</DropdownLink>
-                <DropdownLink href="/category?category=Anniversary">Anniversary</DropdownLink>
-                <DropdownLink href="/category?category=House%20Warming">House Warming</DropdownLink>
-                <DropdownLink href="/category?category=Religious">Religious</DropdownLink>
-              </NavDropdown>
-
-              <Link
-                href="/festival-bundles"
-                className="ml-1 inline-flex items-center gap-1 rounded-full px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
-                style={{ background: "#e85025", ...touch }}
-              >
-                🎉 Festival Bundles
-              </Link>
-
-              <Link
-                href="/about-us"
-                className="touch-manipulation cursor-pointer px-4 py-2 font-medium"
-                style={{ color: "var(--foreground)", ...touch }}
-              >
-                About
-              </Link>
-              <Link
-                href="/contact"
-                className="touch-manipulation cursor-pointer px-4 py-2 font-medium"
-                style={{ color: "var(--foreground)", ...touch }}
-              >
-                Contact
-              </Link>
+              {navItems.map((item) => {
+                if (item.type === "dropdown") {
+                  const sortedChildren = [...(item.children ?? [])].sort((a, b) => a.sortOrder - b.sortOrder);
+                  return (
+                    <NavDropdown key={item._id ?? item.label} label={item.label}>
+                      {sortedChildren.map((ch, ci) => (
+                        <DropdownLink key={ch.id} href={ch.href} className={ci === 0 ? "font-medium" : ""}>
+                          {ch.label}
+                        </DropdownLink>
+                      ))}
+                    </NavDropdown>
+                  );
+                }
+                // direct link
+                if (item.highlightColor) {
+                  return (
+                    <Link
+                      key={item._id ?? item.label}
+                      href={item.href ?? "/"}
+                      className="ml-1 inline-flex items-center gap-1 rounded-full px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
+                      style={{ background: item.highlightColor, ...touch }}
+                    >
+                      {item.icon ? `${item.icon} ` : ""}{item.label}
+                    </Link>
+                  );
+                }
+                return (
+                  <Link
+                    key={item._id ?? item.label}
+                    href={item.href ?? "/"}
+                    className="touch-manipulation cursor-pointer px-4 py-2 font-medium"
+                    style={{ color: "var(--foreground)", ...touch }}
+                  >
+                    {item.icon ? `${item.icon} ` : ""}{item.label}
+                  </Link>
+                );
+              })}
             </div>
 
             <button

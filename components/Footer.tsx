@@ -133,7 +133,7 @@ export function Footer() {
                 href="https://instagram.com/pixvite"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--brand-primary)] text-white shadow-sm transition hover:opacity-90"
+                className="flex h-10 w-10 items-center justify-center rounded-full bg-[#e85025] text-white shadow-sm transition hover:opacity-90"
                 aria-label="Instagram"
               >
                 <InstagramIcon />
@@ -142,7 +142,7 @@ export function Footer() {
                 href="https://youtube.com"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--brand-primary)] text-white shadow-sm transition hover:opacity-90"
+                className="flex h-10 w-10 items-center justify-center rounded-full bg-[#e85025] text-white shadow-sm transition hover:opacity-90"
                 aria-label="YouTube"
               >
                 <YouTubeIcon />
@@ -156,19 +156,19 @@ export function Footer() {
         <div className="flex flex-col gap-4 text-[13px] sm:flex-row sm:items-center sm:justify-between">
           <p className="text-[#999999]">© 2026 InvitesMagic. All rights reserved.</p>
           <nav className="flex flex-wrap items-center gap-x-2 gap-y-2 text-[var(--brand-primary)]">
-            <Link href="/contact" className="transition hover:underline">
+            <Link href="/privacy-policy" className="transition hover:underline">
               Privacy Policy
             </Link>
             <span className="text-[#cccccc]" aria-hidden>
               |
             </span>
-            <Link href="/contact" className="transition hover:underline">
+            <Link href="/terms-conditions" className="transition hover:underline">
               Terms of Use
             </Link>
             <span className="text-[#cccccc]" aria-hidden>
               |
             </span>
-            <Link href="/contact" className="transition hover:underline">
+            <Link href="/refund-policy" className="transition hover:underline">
               Refund &amp; Cancellation Policy
             </Link>
           </nav>
