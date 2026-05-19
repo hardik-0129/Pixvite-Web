@@ -445,11 +445,11 @@ export function LoginSignupClient() {
         onLoad={() => setGoogleReady(true)}
       />
       <div
-        className="fixed inset-0 z-[999] overflow-y-auto"
+        className="fixed inset-0 z-[1100] overflow-y-auto"
         style={{ backgroundColor: "rgba(28, 39, 48, 0.5)", backdropFilter: "blur(4px)" }}
       >
-        <div className="flex min-h-full items-center justify-center px-4 pb-4 pt-24 sm:p-6">
-          <div className="relative w-full max-w-[480px]">
+        <div className="flex min-h-full justify-center px-4 pb-10 pt-8 sm:pt-12 sm:items-center">
+          <div className="relative w-full max-w-[480px] self-start sm:self-auto">
             <div className="relative rounded-2xl bg-white px-5 pb-7 pt-11 shadow-2xl sm:px-8 sm:pb-8 sm:pt-12">
               <button
                 type="button"
