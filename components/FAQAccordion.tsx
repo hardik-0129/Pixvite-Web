@@ -11,38 +11,48 @@ type FAQItem = {
 
 const items: FAQItem[] = [
   {
-    q: "What is InvitesMagic and how does it work?",
+    q: "How do I create my Video Invitation?",
+    a: "Once you customize the video and enter all your details we will instantly generate a preview video (with a watermark) for you to check and verify the details before you make a final payment. Once you have made a payment, the video will be available to download. You can also download it from \"My Video\" at any preferred time.",
+  },
+  {
+    q: "Can I get a Preview Video?",
     a: (
       <>
-        InvitesMagic is an online platform where you can create{" "}
-        <strong className="font-semibold text-[#333333]">beautiful HD video invitations</strong> for weddings,
-        birthdays, and special events. Choose a template you love, personalize names, dates, and venues in our{" "}
-        <strong className="font-semibold text-[#333333]">live preview editor</strong>, and when you&apos;re happy,{" "}
-        <strong className="font-semibold text-[#333333]">download the full-HD video instantly</strong> — edit first,
-        pay only when you&apos;re satisfied.
+        Yes, we provide an instant preview of your generated video. This gives great confidence to our customers whether
+        they need to go for a purchase or not. Our team works really hard in the background to provide you this real-time
+        experience.
+        <br /><br />
+        None of our competitors provide a live preview and there are a lot of hidden costs involved when you go for a
+        manual process with them. But here you can get it all done in less than 5 minutes and without any hidden cost.
       </>
     ),
   },
   {
-    q: "Can I edit my video invitation before paying?",
+    q: "Can I customize the video further?",
     a: (
       <>
-        Yes. You can make unlimited edits in the preview until everything looks perfect. Payment is only required when
-        you&apos;re ready to download your final high-definition video.
+        We create all videos as per the preview shown above. Any changes, addition or removal will be considered as a
+        customization and charged based on designer effort required to complete the changes.
+        <br /><br />
+        For Customization Requests, contact our support at{" "}
+        <a href="mailto:support@invitesmagic.com" className="text-[#e85025] underline underline-offset-2">
+          support@invitesmagic.com
+        </a>{" "}
+        or contact us on WhatsApp before placing the order.
       </>
     ),
   },
   {
-    q: "What format do I receive my invitation in?",
-    a: "You get a crisp MP4 file in full HD, ideal for WhatsApp, Instagram, email, and sharing with guests on any device.",
+    q: "How to download my video invitation?",
+    a: "After making the payment you will be redirected to the download video page instantly. From there you can download it, and for any later time the video will be available in your \"My Video\" section as per our privacy terms.",
   },
   {
-    q: "How long does it take to make my video?",
-    a: "Most invitations are ready within minutes after you confirm your details. Complex edits may take a little longer, but you&apos;ll see updates live in the editor.",
+    q: "Can I get a copy of the Video File?",
+    a: "Of course. You can download a copy of the video once it is created. You can share it on WhatsApp, Facebook, etc. just like a regular video file.",
   },
   {
-    q: "Do I need an account to use InvitesMagic?",
-    a: "You can browse templates without signing up. Creating a draft, saving progress, and downloading may require a free account so we can deliver your video securely.",
+    q: "Is InvitesMagic secure?",
+    a: "All your images are uploaded to our secure server. The images will be deleted automatically after creating the video within 10 days.",
   },
 ];
 
@@ -68,9 +78,7 @@ export function FAQAccordion() {
   return (
     <section
       className="py-16 sm:py-20"
-      style={{
-        background: "linear-gradient(180deg, #fff8f6 0%, #fefcfa 45%, #faf8f6 100%)",
-      }}
+      style={{ background: "#FBF8F3" }}
     >
       <div className="mx-auto max-w-[1400px] px-4">
         <h2 className={`text-center leading-tight tracking-tight ${sectionHeading}`}>
@@ -78,7 +86,7 @@ export function FAQAccordion() {
           <span className="text-[#e85025]">Questions</span>
         </h2>
         <p className="mx-auto mt-4 max-w-xl text-center text-[15px] leading-relaxed text-[#888888] sm:text-base">
-          Everything you need to know about creating beautiful video invitations with InvitesMagic
+          Everything you need to know about creating digital invitations
         </p>
         <div className="max-w-4xl mx-auto space-y-3 sm:space-y-4">
 

@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { notFound } from "next/navigation";
 import { TemplateDetailForm } from "@/components/TemplateDetailForm";
+import { TemplateReviewsSection } from "@/components/TemplateReviewsSection";
 import { getTemplateById } from "@/lib/template-store";
 
 type Props = { params: Promise<{ id: string }> };
@@ -11,5 +12,10 @@ export default async function TemplateDetailPage({ params }: Props) {
   const template = await getTemplateById(id);
   if (!template) notFound();
 
-  return <TemplateDetailForm key={template.id} template={template} />;
+  return (
+    <>
+      <TemplateDetailForm key={template.id} template={template} />
+      <TemplateReviewsSection templateId={template.id} />
+    </>
+  );
 }

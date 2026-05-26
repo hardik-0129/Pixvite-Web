@@ -160,9 +160,7 @@ export function PopularTagsSection() {
   return (
     <div
       className="relative w-full overflow-hidden"
-      style={{
-        background: "linear-gradient(to bottom, rgba(255,153,102,0.08), rgba(255,94,98,0.08), var(--card))",
-      }}
+      style={{ background: "#FBF8F3" }}
     >
       <div
         className="absolute left-1/4 top-0 -z-0 h-32 w-32 rounded-full opacity-20 blur-3xl sm:h-48 sm:w-48 md:h-64 md:w-64"
@@ -199,14 +197,14 @@ export function PopularTagsSection() {
           <div
             className="pointer-events-none absolute inset-y-0 left-0 z-20 w-1/4"
             style={{
-              background: "linear-gradient(to right, var(--card), rgba(255,255,255,0.8), transparent)",
+              background: "linear-gradient(to right, #FBF8F3, rgba(251,248,243,0.8), transparent)",
             }}
             aria-hidden
           />
           <div
             className="pointer-events-none absolute inset-y-0 right-0 z-20 w-1/4"
             style={{
-              background: "linear-gradient(to left, var(--card), rgba(255,255,255,0.8), transparent)",
+              background: "linear-gradient(to left, #FBF8F3, rgba(251,248,243,0.8), transparent)",
             }}
             aria-hidden
           />

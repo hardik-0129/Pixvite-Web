@@ -233,10 +233,10 @@ export function TemplateSidebar({
             )}
           </div>
           <div className="hide-scrollbar max-h-[200px] space-y-2 overflow-y-auto">
-            {categories.map((cat) => {
+            {categories.map((cat, catIdx) => {
               const isActiveParent = category === cat.name;
               return (
-                <div key={cat.name} className="overflow-hidden rounded-xl border border-[var(--border)]/50">
+                <div key={`${cat.name}-${catIdx}`} className="overflow-hidden rounded-xl border border-[var(--border)]/50">
                   <button
                     type="button"
                     onClick={() => onCategory(cat.name, null)}

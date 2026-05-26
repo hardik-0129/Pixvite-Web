@@ -1,14 +1,14 @@
 @import "tailwindcss";
 
 :root {
-  --brand-primary: #ff6b4a;
+  --brand-primary: #e85025;
   --brand-primary-hover: #e85c3c;
   --brand-secondary: #ff8c69;
   --brand-gradient-start: #e85025;
   --brand-gradient-end: #e85025;
   --brand-accent: #fff3e0;
   --price-badge-bg: #ff3d3d;
-  --category-badge-bg: #ff6b4a;
+  --category-badge-bg: #e85025;
   --text-primary: #1a1a1a;
   --foreground: #1a1a1a;
   --text-secondary: #555555;
@@ -17,9 +17,9 @@
   --bg-white: #ffffff;
   --border-light: #eeeeee;
   --border-card: #e8e8e8;
-  --sidebar-active-bg: #ff6b4a;
+  --sidebar-active-bg: #e85025;
   --sidebar-active-text: #ffffff;
-  --progress-active: #ff6b4a;
+  --progress-active: #e85025;
   --progress-inactive: #d9d9d9;
   --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.08);
   --shadow-card-hover: 0 6px 20px rgba(255, 107, 74, 0.18);
@@ -35,8 +35,10 @@
   --brand-end: var(--brand-gradient-end);
   --muted-foreground: var(--text-muted);
   --input: #f3f4f6;
-  --font-header: var(--font-space-grotesk), system-ui, sans-serif;
-  --font-body: var(--font-plus-jakarta), system-ui, sans-serif;
+  --serif: var(--font-cormorant), Georgia, serif;
+  --sans: var(--font-poppins), sans-serif;
+  --font-header: var(--serif);
+  --font-body: var(--sans);
   --background: #fafafa;
   /* Brand accent — used by var(--accent) and Tailwind text-accent / bg-accent */
   --accent: #e85025;
@@ -84,7 +86,7 @@
   --color-accent-foreground: var(--accent-foreground);
   --color-brand-start: var(--brand-start);
   --color-brand-end: var(--brand-end);
-  --color-brand-primary: #ff6b4a;
+  --color-brand-primary: #e85025;
   --color-brand-hover: #e85c3c;
   --color-brand-light: #fff3e0;
   --color-brand-price: #ff3d3d;

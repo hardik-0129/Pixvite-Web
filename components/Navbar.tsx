@@ -579,7 +579,7 @@ export function Navbar() {
             </button>
           </div>
 
-          <div className="flex shrink-0 items-center gap-1.5 overflow-visible sm:gap-2">
+          <div className="flex flex-1 items-center justify-end gap-1.5 overflow-visible sm:gap-2">
             <button
               type="button"
               className="flex h-9 w-9 shrink-0 touch-manipulation items-center justify-center rounded-full border border-gray-200 bg-white/90 transition-colors hover:bg-gray-100 sm:h-10 sm:w-10 lg:hidden"

@@ -1,160 +1,144 @@
-import type { ComponentType } from "react";
-import { sectionHeading } from "@/lib/sectionHeading";
+"use client";
 
-function IconBadge({
-  children,
-  className,
-}: {
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <div
-      className={`mx-auto flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-white shadow-sm ${className ?? ""}`}
-      style={{
-        background: "#e85025",
-      }}
-    >
-      {children}
-    </div>
-  );
-}
-
-function IconEye() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-      <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z" />
-      <circle cx="12" cy="12" r="3" />
-    </svg>
-  );
-}
-
-function IconCard() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-      <rect x="2" y="5" width="20" height="14" rx="2" />
-      <path d="M2 10h20" />
-    </svg>
-  );
-}
-
-function IconDollar() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden>
-      <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function IconDownload() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-      <path d="M12 3v12M8 11l4 4 4-4" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M4 21h16" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function IconHeadset() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-      <path d="M3 18v-6a9 9 0 0 1 18 0v6" />
-      <path d="M21 19a2 2 0 0 1-2 2h-1v-5h2a1 1 0 0 1 1 1v2Z" />
-      <path d="M3 19a2 2 0 0 0 2 2h1v-5H4a1 1 0 0 0-1 1v2Z" />
-    </svg>
-  );
-}
-
-const topFeatures = [
+const features = [
   {
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width="18" height="18">
+        <path d="M1.5 12s4-7.5 10.5-7.5S22.5 12 22.5 12 18.5 19.5 12 19.5 1.5 12 1.5 12Z" />
+        <circle cx="12" cy="12" r="3" />
+      </svg>
+    ),
     title: "Instant Live Preview",
-    description: "See every change in real-time before downloading your final HD video.",
-    Icon: IconEye,
+    desc: "See every change in real-time before downloading your final HD video.",
   },
   {
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width="18" height="18">
+        <rect x="2.5" y="5.5" width="19" height="13" rx="2" />
+        <path d="M2.5 10h19" />
+      </svg>
+    ),
     title: "Edit First, Pay Later",
-    description: "Make unlimited edits. Pay only when you're 100% satisfied.",
-    Icon: IconCard,
+    desc: "Make unlimited edits. Pay only when you're 100% satisfied.",
   },
   {
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width="18" height="18">
+        <path d="M12 3v18M16.5 7.5c0-1.7-2-3-4.5-3s-4.5 1.3-4.5 3 2 2.5 4.5 3 4.5 1.3 4.5 3-2 3-4.5 3-4.5-1.3-4.5-3" />
+      </svg>
+    ),
     title: "Affordable Pricing",
-    description: "Premium-quality video invites at a fraction of traditional design costs.",
-    Icon: IconDollar,
+    desc: "Premium-quality video invites at a fraction of traditional design costs.",
   },
-] as const;
-
-const bottomFeatures = [
   {
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width="18" height="18">
+        <path d="M12 3v13M6.5 10.5 12 16l5.5-5.5M4 20.5h16" />
+      </svg>
+    ),
     title: "HD Download",
-    description: "Export crisp full-HD invites ready to share on Instagram & WhatsApp.",
-    Icon: IconDownload,
+    desc: "Export crisp full-HD invites ready to share on Instagram & WhatsApp.",
   },
   {
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width="18" height="18">
+        <path d="M4 13a8 8 0 0 1 16 0v4a2 2 0 0 1-2 2h-1v-7h3M4 13v4a2 2 0 0 0 2 2h1v-7H4" />
+      </svg>
+    ),
     title: "24/7 Support",
-    description: "Have questions? Our Insta support team is always available to help.",
-    Icon: IconHeadset,
+    desc: "Have questions? Our support team is always available to help.",
   },
-] as const;
+];
 
-function CircleCard({
-  title,
-  description,
-  Icon,
-  zIndex,
-  offsetBottom,
-}: {
-  title: string;
-  description: string;
-  Icon: ComponentType;
-  zIndex: number;
-  /** Pixels; used with `relative` for bottom-row overlap (e.g. HD Download, 24/7 Support) */
-  offsetBottom?: number;
-}) {
-  return (
-    <div
-      className="relative flex h-[min(100vw-3rem,220px)] w-[min(100vw-3rem,220px)] shrink-0 flex-col items-center rounded-full border-2 bg-white px-5 pb-6 pt-7 text-center shadow-[0_6px_28px_rgba(0,0,0,0.07)] sm:h-56 sm:w-56 md:h-[232px] md:w-[232px] md:px-6 md:pb-7 md:pt-8"
-      style={{
-        borderColor: "#ffd3c4",
-        zIndex,
-        ...(offsetBottom != null ? { bottom: offsetBottom } : {}),
-      }}
-    >
-      <IconBadge>
-        <Icon />
-      </IconBadge>
-      <h3 className="font-heading mt-3 text-[15px] font-bold leading-snug text-[var(--text-primary)] sm:text-base">{title}</h3>
-      <p className="mt-2 max-w-[13rem] text-[12px] leading-relaxed text-[#666666] sm:text-[13px]">{description}</p>
-    </div>
-  );
-}
+const rotations = [-3, 2, -1.5, 2.5, -2];
 
 export function WhyPixviteSection() {
   return (
-    <section className="bg-[#fafafa] py-14 sm:py-16 md:py-20">
-      <div className="mx-auto max-w-[1400px] px-4 lg:px-6">
-        <h2 className={`text-center leading-tight tracking-tight ${sectionHeading}`}>
-          <span className="text-[var(--text-primary)]">Why </span>
-          <span style={{ color: "#e85025" }}>InvitesMagic</span>
-        </h2>
+    <section style={{ padding: "100px 24px 120px", background: "#FAF6F1", overflow: "hidden" }}>
+      <div style={{ maxWidth: 1280, margin: "0 auto" }}>
 
-        <div className="mt-12 hidden md:flex md:flex-col md:items-center">
-          <div className="flex flex-wrap justify-center gap-x-6 gap-y-4 lg:gap-x-10">
-            {topFeatures.map((f, i) => (
-              <CircleCard key={f.title} {...f} zIndex={10 + i} />
-            ))}
+        {/* Heading */}
+        <div style={{ textAlign: "center", marginBottom: 70 }}>
+          <div style={{ fontFamily: "var(--serif)", fontStyle: "italic", fontSize: 18, color: "#e85025", marginBottom: 8 }}>
+            ~ five good reasons ~
           </div>
-          <div className="-mt-11 flex flex-wrap justify-center gap-x-6 gap-y-4 lg:-mt-12 lg:gap-x-10">
-            {bottomFeatures.map((f) => (
-              <CircleCard key={f.title} {...f} zIndex={9} offsetBottom={30} />
-            ))}
-          </div>
+          <h2 style={{
+            fontFamily: "var(--serif)",
+            fontSize: "clamp(40px, 6vw, 64px)",
+            fontWeight: 400,
+            margin: 0,
+            lineHeight: 1.05,
+            color: "#2A1A14",
+          }}>
+            Why <em style={{ color: "#e85025", fontStyle: "italic", fontWeight: 500 }}>InvitesMagic</em>
+          </h2>
         </div>
 
-        <div className="mt-10 grid grid-cols-1 justify-items-center gap-8 sm:grid-cols-2 md:hidden">
-          {[...topFeatures, ...bottomFeatures].map((f, i) => (
-            <CircleCard key={f.title} {...f} zIndex={i} />
+        {/* Tickets */}
+        <div style={{ display: "flex", justifyContent: "center", flexWrap: "wrap", gap: 18 }}>
+          {features.map((f, i) => (
+            <article
+              key={f.title}
+              className="im-ticket"
+              style={{
+                width: 230,
+                background: "#FFFDF9",
+                border: "1px solid rgba(42,26,20,0.12)",
+                borderRadius: 12,
+                padding: "26px 22px",
+                boxShadow: "0 18px 40px -20px rgba(42,26,20,0.25)",
+                position: "relative",
+                transform: `rotate(${rotations[i]}deg)`,
+                transition: "transform 280ms cubic-bezier(.2,.8,.2,1), box-shadow 280ms",
+              }}
+              onMouseEnter={e => {
+                (e.currentTarget as HTMLElement).style.transform = "rotate(0deg) translateY(-6px)";
+                (e.currentTarget as HTMLElement).style.boxShadow = "0 28px 56px -22px rgba(42,26,20,0.32)";
+                (e.currentTarget as HTMLElement).style.zIndex = "2";
+              }}
+              onMouseLeave={e => {
+                (e.currentTarget as HTMLElement).style.transform = `rotate(${rotations[i]}deg)`;
+                (e.currentTarget as HTMLElement).style.boxShadow = "0 18px 40px -20px rgba(42,26,20,0.25)";
+                (e.currentTarget as HTMLElement).style.zIndex = "auto";
+              }}
+            >
+              {/* Notches */}
+              <span style={{ position: "absolute", top: 52, left: -8, width: 16, height: 16, borderRadius: "50%", background: "#FAF6F1" }} />
+              <span style={{ position: "absolute", top: 52, right: -8, width: 16, height: 16, borderRadius: "50%", background: "#FAF6F1" }} />
+
+              {/* Stub header */}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 22 }}>
+                <span style={{ fontSize: 10, letterSpacing: "0.2em", textTransform: "uppercase", color: "#5A463D" }}>
+                  Admit One
+                </span>
+                <span style={{ fontFamily: "var(--serif)", fontStyle: "italic", color: "#e85025", fontSize: 15 }}>
+                  № {String(i + 1).padStart(2, "0")}
+                </span>
+              </div>
+
+              {/* Dashed perforation */}
+              <div style={{ borderTop: "1.5px dashed #F4B89E", margin: "0 -22px 0 -22px" }} />
+
+              {/* Body */}
+              <div style={{ paddingTop: 24, display: "flex", flexDirection: "column", gap: 14 }}>
+                <div style={{
+                  width: 40, height: 40, borderRadius: "50%",
+                  background: "#e85025", color: "#fff",
+                  display: "grid", placeItems: "center", flexShrink: 0,
+                }}>
+                  {f.icon}
+                </div>
+                <h3 style={{ fontFamily: "var(--serif)", fontWeight: 500, fontSize: 22, margin: 0, lineHeight: 1.15, color: "#2A1A14" }}>
+                  {f.title}
+                </h3>
+                <p style={{ margin: 0, fontSize: 13, lineHeight: 1.5, color: "#5A463D" }}>
+                  {f.desc}
+                </p>
+              </div>
+            </article>
           ))}
         </div>
+
       </div>
     </section>
   );

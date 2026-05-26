@@ -26,13 +26,13 @@ function remotePatternsFromBackendPrefix(): RemotePattern[] {
 }
 
 // URL of the admin server that hosts template asset files.
-// In production set TEMPLATE_ASSETS_UPSTREAM to your admin domain (e.g. https://admin.pixvite.com).
+// In production set TEMPLATE_ASSETS_UPSTREAM to your admin domain
 const TEMPLATE_ASSETS_UPSTREAM = (
   process.env.TEMPLATE_ASSETS_UPSTREAM || "http://localhost:3001"
 ).replace(/\/+$/, "");
 
 const nextConfig: NextConfig = {
-  allowedDevOrigins: ["192.168.1.7"],
+  allowedDevOrigins: ["192.168.1.*"],
   outputFileTracingRoot: projectRoot,
   turbopack: {
     root: projectRoot,
